@@ -18,7 +18,7 @@ It supports two modes:
 1. Policy decision must not be `block`.
 2. Write mode must be enabled in config.
 3. Preflight artifact must exist when required.
-4. Apply mode requires a one-time confirmation token.
+4. Apply mode requires a signed one-time confirmation token (nonce + ttl + context-bound signature).
 5. Protected environments require protected branch execution.
 
 If any check fails, command exits non-zero and emits a blocked audit event.
@@ -54,7 +54,7 @@ env-typegen sync-apply awsSsm \
   --config env-typegen.config.mjs \
   --apply \
   --preflight-file reports/preflight.json \
-  --confirmation-token CHGSET-APPROVED-001 \
+  --confirmation-token "$SYNC_APPLY_CONFIRMATION_TOKEN" \
   --protected-branch \
   --json
 ```
@@ -70,6 +70,43 @@ env-typegen sync-apply awsSsm \
 - Protected branches: allow apply workflow only with explicit controls.
 - Always upload smoke and audit artifacts for traceability.
 
+## Confirmation token programmatic API
+
+The `--confirmation-token` flag requires a signed one-time token. Generate it programmatically
+in release workflows using the confirmation token API from `@xlameiro/env-typegen`:
+
+```typescript
+import {
+  buildSyncApplyCorrelationId,
+  createApplyConfirmationToken,
+} from "@xlameiro/env-typegen";
+
+// 1. Build a deterministic correlation ID for this apply operation
+const correlationId = buildSyncApplyCorrelationId({
+  provider: "awsSsm",
+  environment: "production",
+  mode: "apply",
+  changeSetHash: preflight.changeSetHash,
+});
+
+// 2. Create the signed token (valid for 300 seconds by default)
+const token = await createApplyConfirmationToken({
+  provider: "awsSsm",
+  environment: "production",
+  changeSetHash: preflight.changeSetHash,
+  correlationId,
+});
+
+// 3. Pass to the CLI
+process.env.SYNC_APPLY_CONFIRMATION_TOKEN = token;
+```
+
+In production CI, set `ENV_TYPEGEN_CONFIRMATION_SIGNING_KEY` to a stable secret.
+Without it, a per-process ephemeral key is generated — tokens created in one CI step
+will be rejected in a subsequent step.
+
+See [Programmatic API](/docs/api#confirmation-token-api) for the full token API reference.
+
 ## Troubleshooting
 
 ### Apply blocked with policy `block`
@@ -82,10 +119,12 @@ env-typegen sync-apply awsSsm \
 - Generate and persist preflight artifact first.
 - Pass `--preflight-file` with a valid path.
 
-### Apply blocked due to missing confirmation token
+### Apply blocked due to missing or invalid confirmation token
 
-- Generate a one-time token in your release workflow.
+- Generate a signed one-time token in your release workflow.
 - Pass `--confirmation-token <token>` when running `--apply`.
+- Ensure token context matches provider, environment, and current change-set hash.
+- Ensure `ENV_TYPEGEN_CONFIRMATION_SIGNING_KEY` is set in production CI.
 
 ### Apply blocked in protected environments
 

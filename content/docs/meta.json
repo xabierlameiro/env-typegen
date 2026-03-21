@@ -6,6 +6,13 @@
     "validation",
     "generators",
     "configuration",
-    "api"
+    "api",
+    "operations",
+    "policy-packs",
+    "sync-apply",
+    "governance-trust-model",
+    "governance-conformance",
+    "governance-chaos-and-slo",
+    "governance-promotion"
   ]
 }

@@ -17,7 +17,10 @@ export type WriteGuardContext = {
     isValid: boolean;
     reasons: string[];
   };
-  hasConfirmationToken: boolean;
+  confirmationTokenValidation: {
+    isValid: boolean;
+    reasons: string[];
+  };
   hasOverrideReason: boolean;
 };
 
@@ -61,8 +64,8 @@ export function evaluateWriteGuards(context: WriteGuardContext): WriteGuardResul
     reasons.push(...context.preflightValidation.reasons);
   }
 
-  if (!context.hasConfirmationToken) {
-    reasons.push("A one-time confirmation token is required for apply mode.");
+  if (!context.confirmationTokenValidation.isValid) {
+    reasons.push(...context.confirmationTokenValidation.reasons);
   }
 
   if (!context.hasOverrideReason) {

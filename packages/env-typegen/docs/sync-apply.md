@@ -12,7 +12,7 @@
 - policy decision must not be `block`
 - write mode must be enabled in config
 - preflight artifact is required when configured
-- apply mode requires a one-time confirmation token
+- apply mode requires a signed one-time confirmation token (nonce + ttl + context-bound signature)
 - protected environments require protected branch execution
 
 ### Config example
@@ -41,7 +41,7 @@ env-typegen sync-apply smoke \
   --config env-typegen.config.mjs \
   --apply \
   --preflight-file reports/preflight.json \
-  --confirmation-token CHGSET-APPROVED-001 \
+  --confirmation-token "$SYNC_APPLY_CONFIRMATION_TOKEN" \
   --protected-branch \
   --json
 ```

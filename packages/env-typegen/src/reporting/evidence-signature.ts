@@ -1,4 +1,4 @@
-import { createHmac, randomBytes } from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 export type EvidenceSignature = {
   version: 1;
@@ -14,6 +14,20 @@ function toHexDigest(input: string): string {
   return createHmac("sha256", "env-typegen:evidence:signature-id")
     .update(input, "utf8")
     .digest("hex");
+}
+
+function isTimingSafeSignatureMatch(params: {
+  expectedSignature: string;
+  providedSignature: string;
+}): boolean {
+  const expectedSignatureBuffer = Buffer.from(params.expectedSignature, "utf8");
+  const providedSignatureBuffer = Buffer.from(params.providedSignature, "utf8");
+
+  if (expectedSignatureBuffer.length !== providedSignatureBuffer.length) {
+    return false;
+  }
+
+  return timingSafeEqual(expectedSignatureBuffer, providedSignatureBuffer);
 }
 
 let nonProductionSigningSecret: string | undefined;
@@ -78,5 +92,8 @@ export function verifyEvidenceSignature(params: {
     signedAt: params.signature.signedAt,
   });
 
-  return expected.signature === params.signature.signature;
+  return isTimingSafeSignatureMatch({
+    expectedSignature: expected.signature,
+    providedSignature: params.signature.signature,
+  });
 }

@@ -9,7 +9,11 @@ pnpm add -D @xlameiro/env-typegen
 ### Basic usage
 
 ```bash
-env-typegen --input .env.example --output env.generated.ts --format ts
+# Default CLI behavior
+env-typegen
+
+# Equivalent explicit form
+env-typegen --input .env.example --output src/env.ts --format ts
 ```
 
 ### Generate multiple outputs
@@ -21,7 +25,8 @@ env-typegen -i .env.example -o env.generated.ts -f ts -f zod -f t3 -f declaratio
 When multiple formats are specified, each generator writes a separate file:
 `env.generated.typescript.ts`, `env.generated.zod.ts`, `env.generated.t3.ts`, `env.generated.declaration.d.ts`.
 
-`--generator` is still accepted as a backward-compatible alias for `--format`.
+Use `--format` as the preferred generator flag. `--generator` is still accepted as a
+backward-compatible alias.
 
 ### Watch mode
 
@@ -56,7 +61,7 @@ env-typegen sync-preview vercel --env-file .env --config env-typegen.config.mjs
 
 `pull` is read-only in v1 and does not write values back to cloud providers.
 
-Apply mode in `sync-apply` requires a one-time `--confirmation-token` in addition to other guardrails.
+Apply mode in `sync-apply` requires a signed one-time `--confirmation-token` (nonce + ttl + signature with context binding) in addition to other guardrails.
 
 ### JSON output for CI
 

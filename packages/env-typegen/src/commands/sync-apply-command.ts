@@ -26,6 +26,10 @@ import {
   type ApplyOperationResultV2,
 } from "../sync/apply-engine-v2.js";
 import type { ApplyMode } from "../sync/apply-engine.js";
+import {
+  buildSyncApplyCorrelationId,
+  validateApplyConfirmationToken,
+} from "../sync/apply-confirmation-token.js";
 import { buildChangeSetFromMaps, calculateChangeSetHash } from "../sync/change-set.js";
 import { validatePreflightProof } from "../sync/preflight-proof.js";
 import { evaluateWriteGuards } from "../sync/write-guards.js";
@@ -63,7 +67,7 @@ const SYNC_APPLY_HELP_TEXT = [
   "  --env-file <path>         Local env file to sync (default: .env)",
   "  --apply                   Enable write mode (default: dry-run)",
   "  --preflight-file <path>   Required plan artifact for apply mode when configured",
-  "  --confirmation-token <v>  One-time confirmation token for apply mode",
+  "  --confirmation-token <v>  Signed one-time confirmation token for apply mode",
   "  --override                Enable manual emergency override flow",
   "  --reason <text>           Required when --override is set",
   "  --strategy <mode>         fail-fast | fail-late (default: fail-fast)",
@@ -317,16 +321,6 @@ function buildAuditEvent(params: {
   };
 }
 
-function buildCorrelationId(params: {
-  providerName: string;
-  environment: string;
-  mode: ApplyMode;
-  changeSetHash: string;
-}): string {
-  const fingerprint = params.changeSetHash.slice(0, 16);
-  return `${params.providerName}:${params.environment}:${params.mode}:${fingerprint}`;
-}
-
 async function resolvePreflightValidation(params: {
   mode: ApplyMode;
   requiresPreflight: boolean;
@@ -368,6 +362,41 @@ async function resolvePreflightValidation(params: {
     environment: params.environment,
     changeSetHash: params.changeSetHash,
   });
+}
+
+function resolveConfirmationTokenValidation(params: {
+  mode: ApplyMode;
+  values: SyncApplyArgValues;
+  providerName: string;
+  environment: string;
+  changeSetHash: string;
+  correlationId: string;
+  usedNonces: Set<string>;
+}): { isValid: boolean; reasons: string[] } {
+  if (params.mode === "dry-run") {
+    return {
+      isValid: true,
+      reasons: [],
+    };
+  }
+
+  const validation = validateApplyConfirmationToken({
+    token: params.values["confirmation-token"],
+    provider: params.providerName,
+    environment: params.environment,
+    changeSetHash: params.changeSetHash,
+    expectedCorrelationId: params.correlationId,
+    usedNonces: params.usedNonces,
+  });
+
+  if (validation.isValid && validation.payload !== undefined) {
+    params.usedNonces.add(validation.payload.nonce);
+  }
+
+  return {
+    isValid: validation.isValid,
+    reasons: validation.reasons,
+  };
 }
 
 function buildInitialLifecycleEvents(params: {
@@ -594,14 +623,15 @@ async function executeSyncApplyUnsafe(
   const policy = evaluatePolicy(driftReport, config?.policy);
   const changeSet = buildChangeSetFromMaps({ localValues: local, remoteValues: remote.values });
   const changeSetHash = calculateChangeSetHash(changeSet);
-  const correlationId = buildCorrelationId({
-    providerName,
+  const correlationId = buildSyncApplyCorrelationId({
+    provider: providerName,
     environment,
     mode,
     changeSetHash,
   });
   const evidenceBundleId = `${correlationId}:evidence:v1`;
   const usedAttestationIds = new Set<string>();
+  const usedConfirmationTokenNonces = new Set<string>();
 
   const requiresPreflight = writePolicy.requirePreflight ?? true;
   const preflightValidation = await resolvePreflightValidation({
@@ -612,6 +642,15 @@ async function executeSyncApplyUnsafe(
     environment,
     changeSetHash,
     usedAttestationIds,
+  });
+  const confirmationTokenValidation = resolveConfirmationTokenValidation({
+    mode,
+    values,
+    providerName,
+    environment,
+    changeSetHash,
+    correlationId,
+    usedNonces: usedConfirmationTokenNonces,
   });
 
   const hasOverrideReason =
@@ -625,8 +664,7 @@ async function executeSyncApplyUnsafe(
     isProtectedEnvironment: (writePolicy.protectedEnvironments ?? []).includes(environment),
     isProtectedBranch: resolveProtectedBranch(values),
     preflightValidation,
-    hasConfirmationToken:
-      mode === "dry-run" ? true : typeof values["confirmation-token"] === "string",
+    confirmationTokenValidation,
     hasOverrideReason,
     attestationValidation: preflightValidation,
   });

@@ -35,6 +35,7 @@ export function serializeAuditEvent(event: AuditEvent): string {
       : { operationStatuses: redacted.operationStatuses }),
     ...(redacted.summary === undefined ? {} : { summary: redacted.summary }),
     ...(redacted.reasons === undefined ? {} : { reasons: redacted.reasons }),
+    ...(redacted.metadata === undefined ? {} : { metadata: redacted.metadata }),
     message: redacted.message,
   };
 

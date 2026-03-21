@@ -204,8 +204,19 @@ describe("runCli", () => {
     expect(output).toContain("env-typegen");
     expect(output).toContain("--input");
     expect(output).toContain("--format");
+    expect(output).toContain("--generator");
+    expect(output).toContain("--no-format");
     expect(output).toContain("--watch");
     expect(output).toContain("--mode");
+    expect(output).toContain("Subcommands:");
+    expect(output).toContain("check");
+    expect(output).toContain("diff");
+    expect(output).toContain("doctor");
+    expect(output).toContain("verify");
+    expect(output).toContain("pull");
+    expect(output).toContain("plan");
+    expect(output).toContain("sync-preview");
+    expect(output).toContain("sync-apply");
   });
 
   it("should print help text when -h is passed", async () => {
@@ -400,7 +411,7 @@ describe("runCli", () => {
 
     const output = spy.mock.calls.map((c) => String(c[0])).join("\n");
     expect(output).toContain("Exit codes:");
-    expect(output).toContain("status: ok or warn");
+    expect(output).toContain("status: ok");
   });
 
   it("should document strict CI semantics in verify --help", async () => {

@@ -19,8 +19,8 @@ function escapeJsStringLiteral(value: string): string {
 function toT3ZodType(envVarType: EnvVarType): string {
   if (envVarType === "number") return "z.coerce.number()";
   if (envVarType === "boolean") return "z.coerce.boolean()";
-  if (envVarType === "url") return "z.string().url()";
-  if (envVarType === "email") return "z.string().email()";
+  if (envVarType === "url") return "z.url()";
+  if (envVarType === "email") return "z.email()";
   return "z.string()";
 }
 

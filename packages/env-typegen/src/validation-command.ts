@@ -77,7 +77,7 @@ const HELP_TEXT: Record<ValidationCommand, string> = {
     "  -h, --help                Show this help",
     "",
     "Exit codes:",
-    "  0  All checks passed (status: ok or warn)",
+    "  0  All checks passed (status: ok)",
     "  1  One or more checks failed (status: fail) or invalid usage",
   ].join("\n"),
   diff: [
@@ -100,7 +100,7 @@ const HELP_TEXT: Record<ValidationCommand, string> = {
     "  -h, --help                Show this help",
     "",
     "Exit codes:",
-    "  0  All checks passed (status: ok or warn)",
+    "  0  All checks passed (status: ok)",
     "  1  One or more checks failed (status: fail) or invalid usage",
   ].join("\n"),
   doctor: [
@@ -124,7 +124,7 @@ const HELP_TEXT: Record<ValidationCommand, string> = {
     "  -h, --help                Show this help",
     "",
     "Exit codes:",
-    "  0  All checks passed (status: ok or warn)",
+    "  0  All checks passed (status: ok)",
     "  1  One or more checks failed (status: fail) or invalid usage",
   ].join("\n"),
   verify: [

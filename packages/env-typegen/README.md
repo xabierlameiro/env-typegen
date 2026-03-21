@@ -105,14 +105,17 @@ npm install --save-dev @xlameiro/env-typegen
 ## Quick Start
 
 ```bash
-# Generate all outputs by default
-npx env-typegen --input .env.example --output src/env.generated.ts
+# Default CLI behavior (auto-detect .env.example, generate TypeScript output to src/env.ts)
+npx env-typegen
+
+# Custom output path with explicit format
+npx env-typegen --input .env.example --output src/env.generated.ts --format ts
 
 # Generate only Zod schema
 npx env-typegen -i .env.example -o src/env.schema.ts -f zod
 
-# Watch mode
-npx env-typegen -i .env.example -o src/env.generated.ts --watch
+# Watch mode (custom output path)
+npx env-typegen -i .env.example -o src/env.generated.ts -f ts --watch
 ```
 
 ## Generator formats
@@ -124,7 +127,8 @@ npx env-typegen -i .env.example -o src/env.generated.ts --watch
 | `t3`                 | `@t3-oss/env-nextjs` `createEnv(...)` config |
 | `declaration`        | Ambient `.d.ts` env declaration              |
 
-`--generator` remains available as a backward-compatible alias for `--format`.
+Use `--format` as the preferred generator flag. `--generator` remains available as a
+backward-compatible alias.
 
 Multiple outputs in one run:
 
@@ -160,14 +164,14 @@ npx env-typegen sync-apply vercel \
   --config env-typegen.config.mjs \
   --apply \
   --preflight-file reports/preflight.json \
-  --confirmation-token CHGSET-APPROVED-001 \
+  --confirmation-token etgac.v1.<base64url-payload>.<hmac-sha256-signature> \
   --protected-branch \
   --json
 ```
 
 `pull` is read-only in v1 and does not push values to providers.
 
-`sync-apply` runs in dry-run mode by default and requires explicit guards for apply mode, including a one-time confirmation token.
+`sync-apply` runs in dry-run mode by default and requires explicit guards for apply mode, including a structured, HMAC-signed one-time confirmation token bound to provider/environment/change-set context.
 
 Recommended CI policy:
 

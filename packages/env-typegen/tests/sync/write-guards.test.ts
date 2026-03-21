@@ -15,7 +15,10 @@ describe("evaluateWriteGuards", () => {
         isValid: false,
         reasons: ["A valid preflight proof is required before apply mode."],
       },
-      hasConfirmationToken: false,
+      confirmationTokenValidation: {
+        isValid: false,
+        reasons: ["A one-time confirmation token is required for apply mode."],
+      },
       hasOverrideReason: false,
     });
 
@@ -35,7 +38,10 @@ describe("evaluateWriteGuards", () => {
         isValid: true,
         reasons: [],
       },
-      hasConfirmationToken: true,
+      confirmationTokenValidation: {
+        isValid: true,
+        reasons: [],
+      },
       hasOverrideReason: true,
     });
 
@@ -55,7 +61,10 @@ describe("evaluateWriteGuards", () => {
         isValid: true,
         reasons: [],
       },
-      hasConfirmationToken: true,
+      confirmationTokenValidation: {
+        isValid: true,
+        reasons: [],
+      },
       hasOverrideReason: true,
     });
 
@@ -75,7 +84,10 @@ describe("evaluateWriteGuards", () => {
         isValid: true,
         reasons: [],
       },
-      hasConfirmationToken: true,
+      confirmationTokenValidation: {
+        isValid: true,
+        reasons: [],
+      },
       hasOverrideReason: true,
     });
 
@@ -96,7 +108,10 @@ describe("evaluateWriteGuards", () => {
         isValid: true,
         reasons: [],
       },
-      hasConfirmationToken: false,
+      confirmationTokenValidation: {
+        isValid: false,
+        reasons: ["A one-time confirmation token is required for apply mode."],
+      },
       hasOverrideReason: true,
     });
 

@@ -55,6 +55,28 @@ describe("evidence-signature", () => {
     ).toBe(false);
   });
 
+  it("should return false when the provided signature has a different length", () => {
+    const signature = signEvidenceHash({
+      bundleHash: "bundle-hash",
+      lifecycleHash: "lifecycle-hash",
+      secret: "test-secret",
+    });
+
+    const signatureWithDifferentLength = {
+      ...signature,
+      signature: `${signature.signature}0`,
+    };
+
+    expect(
+      verifyEvidenceSignature({
+        bundleHash: "bundle-hash",
+        lifecycleHash: "lifecycle-hash",
+        signature: signatureWithDifferentLength,
+        secret: "test-secret",
+      }),
+    ).toBe(false);
+  });
+
   it("should throw when running in production without a signing secret", () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("ENV_TYPEGEN_EVIDENCE_SIGNING_KEY", "");

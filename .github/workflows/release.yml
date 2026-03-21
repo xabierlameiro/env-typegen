@@ -9,6 +9,7 @@ permissions: {}
 jobs:
   release:
     runs-on: ubuntu-latest
+    environment: production # Configure required reviewers in repository Environment settings.
     permissions:
       contents: write
       pull-requests: write
