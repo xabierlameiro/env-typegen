@@ -4,12 +4,14 @@ on:
   push:
     branches: [main]
 
-permissions: read-all
+permissions: {}
 
 jobs:
   release:
     runs-on: ubuntu-latest
     permissions:
+      contents: write
+      pull-requests: write
       id-token: write
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -19,11 +21,11 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @xlameiro/env-typegen lint
-      - run: pnpm --filter @xlameiro/env-typegen type-check
-      - run: pnpm --filter @xlameiro/env-typegen test:coverage
       - run: pnpm --filter @xlameiro/env-typegen build
-      - run: pnpm --filter @xlameiro/env-typegen release
+      - uses: changesets/action@6a0a831ff30acef54f2c6aa1cbbc1096b066edaf # v1.7.0
+        with:
+          publish: pnpm --filter @xlameiro/env-typegen release
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           HUSKY: 0

@@ -2,8 +2,8 @@ import path from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import * as configModule from "../src/config.js";
 import type * as fsModule from "node:fs";
+import * as configModule from "../src/config.js";
 import type * as pipelineModule from "../src/pipeline.js";
 import type * as loggerModule from "../src/utils/logger.js";
 import { startWatch } from "../src/watch.js";

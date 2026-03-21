@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { EnvContract } from "../../src/schema/schema-model.js";
 import type { ParsedEnvFile } from "../../src/parser/types.js";
+import type { EnvContract } from "../../src/schema/schema-model.js";
 import { validateContract } from "../../src/validator/contract-validator.js";
 
 // ---------------------------------------------------------------------------

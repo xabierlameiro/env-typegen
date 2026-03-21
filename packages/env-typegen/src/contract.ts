@@ -2,9 +2,9 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-import type { EnvVarType } from "./parser/types.js";
 import { parseEnvFile } from "./parser/env-parser.js";
-import type { EnvContract as LegacyEnvContract, EnvContractEntry } from "./schema/schema-model.js";
+import type { EnvVarType } from "./parser/types.js";
+import type { EnvContractEntry, EnvContract as LegacyEnvContract } from "./schema/schema-model.js";
 import type { EnvContract, EnvContractVariable, Expected } from "./validation/types.js";
 
 type LoadValidationContractOptions = {
