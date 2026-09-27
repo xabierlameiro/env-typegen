@@ -183,9 +183,6 @@ Conformance report artifact:
 - Trust model guide (package): [`packages/env-typegen/docs/governance-trust-model.md`](packages/env-typegen/docs/governance-trust-model.md)
 - Chaos and SLO guide (website): [`content/docs/governance-chaos-and-slo.mdx`](content/docs/governance-chaos-and-slo.mdx)
 - Chaos and SLO guide (package): [`packages/env-typegen/docs/governance-chaos-and-slo.md`](packages/env-typegen/docs/governance-chaos-and-slo.md)
-- Roadmap (Part 5): [`docs/roadmap/infra-governance-part5-roadmap.md`](docs/roadmap/infra-governance-part5-roadmap.md)
-- Roadmap (Part 6): [`docs/roadmap/infra-governance-part6-roadmap.md`](docs/roadmap/infra-governance-part6-roadmap.md)
-- Roadmap (Part 7): [`docs/roadmap/infra-governance-part7-roadmap.md`](docs/roadmap/infra-governance-part7-roadmap.md)
 
 Multi-repo bootstrap implementation:
 
