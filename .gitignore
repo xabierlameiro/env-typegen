@@ -85,3 +85,6 @@ qa-test/reports/
 
 # sync-apply record of used confirmation tokens
 .env-typegen/
+
+# Agent planning transcripts
+big_plan*.md
