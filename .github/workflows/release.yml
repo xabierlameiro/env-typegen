@@ -18,6 +18,9 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+          # Writes the .npmrc that maps NODE_AUTH_TOKEN to the registry. The
+          # changesets action used to do this; without it publish fails with ENEEDAUTH.
+          registry-url: https://registry.npmjs.org
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @xlameiro/env-typegen lint
       - run: pnpm --filter @xlameiro/env-typegen type-check
@@ -25,5 +28,5 @@ jobs:
       - run: pnpm --filter @xlameiro/env-typegen build
       - run: pnpm --filter @xlameiro/env-typegen release
         env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           HUSKY: 0
