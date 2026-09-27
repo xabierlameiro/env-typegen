@@ -71,7 +71,7 @@
   },
   "dependencies": {
     "picocolors": "^1.1.1",
-    "chokidar": "^4.0.3",
+    "chokidar": "^5.0.0",
     "prettier": "^3.9.9"
   },
   "devDependencies": {
