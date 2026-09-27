@@ -19,9 +19,10 @@ updates:
       prefix: "chore(deps)"
       include: "scope"
     ignore:
-      # Node types follow the Node version in .nvmrc and the package's support floor.
-      # A major is bumped by hand together with the Node version.
-      - dependency-name: "@types/node"
+      # Majors are bumped by hand, in a batch that is verified locally. Minor and patch
+      # updates are merged by dependabot-automerge.yml. `update-types` only filters
+      # version updates: a security update still opens a pull request for a major.
+      - dependency-name: "*"
         update-types:
           - "version-update:semver-major"
     groups:
@@ -77,6 +78,11 @@ updates:
     commit-message:
       prefix: "chore(ci)"
       include: "scope"
+    ignore:
+      # Same rule as the npm block: majors are bumped by hand.
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
     groups:
       # Batch all minor/patch GitHub Actions updates into one PR
       github-actions:
