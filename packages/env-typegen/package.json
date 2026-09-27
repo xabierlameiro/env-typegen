@@ -22,13 +22,13 @@
     "developer-tools",
     "type-inference"
   ],
-  "homepage": "https://github.com/xlameiro/env-typegen",
+  "homepage": "https://github.com/xabierlameiro/env-typegen",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/xlameiro/env-typegen.git"
+    "url": "git+https://github.com/xabierlameiro/env-typegen.git"
   },
   "bugs": {
-    "url": "https://github.com/xlameiro/env-typegen/issues"
+    "url": "https://github.com/xabierlameiro/env-typegen/issues"
   },
   "license": "MIT",
   "author": "xlameiro",
