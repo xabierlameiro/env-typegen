@@ -19,6 +19,8 @@ describe("runSyncApplyCommand hardening", () => {
     dir = await mkdtemp(path.join(tmpdir(), "env-typegen-sync-apply-hardening-"));
     vi.stubEnv("ENV_TYPEGEN_CONFIRMATION_SIGNING_KEY", "hardening-test-confirmation-signing-key");
     vi.stubEnv("ENV_TYPEGEN_EVIDENCE_SIGNING_KEY", "hardening-test-evidence-signing-key");
+    // GitHub sets this to "true" on a push to a protected branch, which lifts the branch guard.
+    vi.stubEnv("GITHUB_REF_PROTECTED", "false");
   });
 
   afterEach(() => {
