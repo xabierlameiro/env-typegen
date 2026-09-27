@@ -67,7 +67,7 @@
   },
   "dependencies": {
     "@t3-oss/env-nextjs": "^0.13.11",
-    "@xlameiro/env-typegen": "^0.2.0",
+    "@xlameiro/env-typegen": "^0.3.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "fumadocs-core": "^16.15.15",
