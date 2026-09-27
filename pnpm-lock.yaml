@@ -28,8 +28,8 @@ importers:
         specifier: ^0.13.11
         version: 0.13.11(typescript@5.9.3)(zod@4.6.5)
       "@xlameiro/env-typegen":
-        specifier: ^0.1.7
-        version: 0.1.7(@t3-oss/env-nextjs@0.13.11(typescript@5.9.3)(zod@4.6.5))(zod@4.6.5)
+        specifier: ^0.2.0
+        version: 0.2.0(@t3-oss/env-nextjs@0.13.11(typescript@5.9.3)(zod@4.6.5))(zod@4.6.5)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -149,8 +149,8 @@ importers:
         specifier: ^16.4.0
         version: 16.4.0
       portless:
-        specifier: ^0.7.0
-        version: 0.7.0
+        specifier: ^0.15.6
+        version: 0.15.6
       prettier:
         specifier: ^3.9.9
         version: 3.9.9
@@ -3940,12 +3940,12 @@ packages:
         integrity: sha512-zTCVGpyFsGWBhllOyKlTw/vnr6D9qxsfSDyfbyZmTyjHw5N/VuvzHpHoQjm2ZJzn4RJgx5w4r7V0er69CmLgPQ==,
       }
 
-  "@xlameiro/env-typegen@0.1.7":
+  "@xlameiro/env-typegen@0.2.0":
     resolution:
       {
-        integrity: sha512-eFVELYYNRu5iiye4Gk5m7LRzbRaOrjdzwQxuHE+K9IA2O00v1ZT2XW+dfy5kNZMAPQXpBLRHGmG9qtkgCw0euQ==,
+        integrity: sha512-vVhZC8SVjpRHu3j82ybl9vP/m96JidDttrgMcs3a7+0Ze5WS60GZl75LEO5VgyGSlifc9fzWUm6iSZPN735ScQ==,
       }
-    engines: { node: ">=18" }
+    engines: { node: ">=20" }
     hasBin: true
     peerDependencies:
       "@t3-oss/env-nextjs": ">=0.10.0"
@@ -4374,13 +4374,6 @@ packages:
         integrity: sha512-oKnbhFyRIXpUuez8iBMmyEa4nbj4IOQyuhc/wy9kY7/WVPcwIO9VA668Pu8RkO7+0G76SLROeyw9CpQ061i4mA==,
       }
     engines: { node: ">=10" }
-
-  chalk@5.6.2:
-    resolution:
-      {
-        integrity: sha512-7NzBL0rN6fMUW+f7A6Io4h40qQlG+xGmtMxfbnH/K7TAtt8JQWVQK+6g0UXKMeVJoyV5EkkNsErQ8pVD3bLHbA==,
-      }
-    engines: { node: ^12.17.0 || ^14.13 || >=16.0.0 }
 
   change-case@5.4.4:
     resolution:
@@ -7525,12 +7518,12 @@ packages:
       }
     engines: { node: ">=4" }
 
-  portless@0.7.0:
+  portless@0.15.6:
     resolution:
       {
-        integrity: sha512-rxreakOeTfgGcOpa4C5GSH4dra9xX4XIRunwRwtjp9g/ercLjkB/h4hT+4w0LQiIHER0xzxJ7sJxpBwEdtRZIg==,
+        integrity: sha512-uOAwWLF32rmyEGFASzSO0VOaqb/AQxFCCzyZbPGd82UNNOfIEvc09zy92nroNibE5HNfzV4oVB0ObKbPXgkM9A==,
       }
-    engines: { node: ">=20" }
+    engines: { node: ">=24" }
     os: [darwin, linux, win32]
     hasBin: true
 
@@ -11350,7 +11343,7 @@ snapshots:
       convert-source-map: 2.0.0
       tinyrainbow: 3.1.1
 
-  "@xlameiro/env-typegen@0.1.7(@t3-oss/env-nextjs@0.13.11(typescript@5.9.3)(zod@4.6.5))(zod@4.6.5)":
+  "@xlameiro/env-typegen@0.2.0(@t3-oss/env-nextjs@0.13.11(typescript@5.9.3)(zod@4.6.5))(zod@4.6.5)":
     dependencies:
       chokidar: 4.0.3
       picocolors: 1.1.1
@@ -11601,8 +11594,6 @@ snapshots:
     dependencies:
       ansi-styles: 4.3.0
       supports-color: 7.2.0
-
-  chalk@5.6.2: {}
 
   change-case@5.4.4: {}
 
@@ -13984,9 +13975,7 @@ snapshots:
 
   pluralize@8.0.0: {}
 
-  portless@0.7.0:
-    dependencies:
-      chalk: 5.6.2
+  portless@0.15.6: {}
 
   possible-typed-array-names@1.1.0: {}
 
