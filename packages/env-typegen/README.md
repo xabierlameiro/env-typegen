@@ -88,7 +88,7 @@ npx env-typegen sync-apply vercel \
   --config env-typegen.config.mjs \
   --apply \
   --preflight-file reports/preflight.json \
-  --confirmation-token etgac.v1.<base64url-payload>.<hmac-sha256-signature> \
+  --confirmation-token "$(npx env-typegen confirmation-token vercel --env production --env-file .env --config env-typegen.config.mjs)" \
   --protected-branch \
   --json
 ```
@@ -96,6 +96,8 @@ npx env-typegen sync-apply vercel \
 `pull` is read-only in v1 and does not push values to providers.
 
 `sync-apply` runs in dry-run mode by default and requires explicit guards for apply mode, including a structured, HMAC-signed one-time confirmation token bound to provider/environment/change-set context.
+
+`confirmation-token` creates that token for the current change set. It needs `ENV_TYPEGEN_CONFIRMATION_SIGNING_KEY` (32 characters or more). Apply mode also needs `ENV_TYPEGEN_EVIDENCE_SIGNING_KEY`, so the evidence of a write is signed.
 
 Recommended CI policy:
 

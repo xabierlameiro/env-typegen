@@ -20,6 +20,7 @@ It supports two modes:
 3. Preflight artifact must exist when required.
 4. Apply mode requires a signed one-time confirmation token (nonce + ttl + context-bound signature).
 5. Protected environments require protected branch execution.
+6. Apply mode requires `ENV_TYPEGEN_EVIDENCE_SIGNING_KEY`, so the evidence of a write is signed.
 
 If any check fails, command exits non-zero and emits a blocked audit event.
 
@@ -70,10 +71,52 @@ env-typegen sync-apply awsSsm \
 - Protected branches: allow apply workflow only with explicit controls.
 - Always upload smoke and audit artifacts for traceability.
 
+## Creating a confirmation token
+
+The `--confirmation-token` flag requires a signed one-time token. Create it with the
+`confirmation-token` command, using the same provider, `--env`, `--env-file` and `--config`
+as the apply run:
+
+```bash
+export ENV_TYPEGEN_CONFIRMATION_SIGNING_KEY="<32 characters or more>"
+export ENV_TYPEGEN_EVIDENCE_SIGNING_KEY="<your evidence signing key>"
+
+SYNC_APPLY_CONFIRMATION_TOKEN="$(env-typegen confirmation-token awsSsm \
+  --env production \
+  --env-file .env \
+  --config env-typegen.config.mjs)"
+
+env-typegen sync-apply awsSsm \
+  --env production \
+  --env-file .env \
+  --config env-typegen.config.mjs \
+  --apply \
+  --preflight-file reports/preflight.json \
+  --confirmation-token "$SYNC_APPLY_CONFIRMATION_TOKEN" \
+  --protected-branch \
+  --json
+```
+
+The command pulls the remote values, builds the change set and signs a token bound to its
+hash. It writes nothing to the provider. It prints only the token on stdout, and errors go
+to stderr with exit code `1`.
+
+| Option              | Description                                        |
+| ------------------- | -------------------------------------------------- |
+| `--provider <name>` | Provider name, when the positional is omitted      |
+| `--env <name>`      | Logical environment (default: `development`)       |
+| `--env-file <path>` | Local env file to sync (default: `.env`)           |
+| `--ttl <seconds>`   | Token lifetime, `1` to `900` (default: `300`)      |
+| `-c, --config`      | Config file path                                   |
+| `--json`            | Emit the token with its binding and expiry as JSON |
+
+If the remote values or the env file change after the token is created, the change-set
+hash no longer matches and the apply is blocked. Create a new token.
+
 ## Confirmation token programmatic API
 
-The `--confirmation-token` flag requires a signed one-time token. Generate it programmatically
-in release workflows using the confirmation token API from `@xlameiro/env-typegen`:
+The same token can be created in code with the confirmation token API from
+`@xlameiro/env-typegen`:
 
 ```typescript
 import {
@@ -111,10 +154,47 @@ A token is spent when every guard allows the apply, right before the first write
 blocked by another guard leaves the token usable for the retry. Used tokens are recorded in `.env-typegen/confirmation-nonces` under the
 working directory. Change the location with `writePolicy.confirmationNonceStorePath`.
 
-The record lives on the local filesystem. On CI runners that start from a clean workspace,
-point `confirmationNonceStorePath` to a directory that persists between jobs. Without a
-persisted directory, reuse is limited only by the token expiry (15 minutes at most) and by
-the change-set hash, which changes as soon as an apply modifies the remote values.
+### One-time use on CI
+
+The record lives on the local filesystem. A CI runner that starts from a clean workspace
+has no record of the tokens spent by earlier jobs, so a replay is not detected there.
+Until the token expires, the record has to reach every job that can run `--apply`.
+
+- Create the token in the same job that applies it, with a short `--ttl`.
+- Run apply jobs one at a time. Two jobs that run at once do not see each other's record.
+- Keep the record for at least the token lifetime. After the expiry the token is rejected
+  on its own, so older records are not needed.
+- Keep the signing key out of jobs that do not apply. Anyone who holds the key can create a
+  new token, which no record prevents.
+
+On GitHub Actions the record can travel in the cache. This recipe is a starting point and
+has not been run against a real workflow:
+
+```yaml
+concurrency:
+  group: env-sync-apply-production
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache/restore@v4
+        with:
+          path: .env-typegen/confirmation-nonces
+          key: confirmation-nonces-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: confirmation-nonces-
+      # create the token and run sync-apply --apply here
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .env-typegen/confirmation-nonces
+          key: confirmation-nonces-${{ github.run_id }}-${{ github.run_attempt }}
+```
+
+A shared volume or a self-hosted runner with a fixed `confirmationNonceStorePath` gives the
+same result without the cache.
 
 See [Programmatic API](/docs/api#confirmation-token-api) for the full token API reference.
 
@@ -132,11 +212,18 @@ See [Programmatic API](/docs/api#confirmation-token-api) for the full token API 
 
 ### Apply blocked due to missing or invalid confirmation token
 
-- Generate a signed one-time token in your release workflow.
+- Create a token with `env-typegen confirmation-token <provider>`.
 - Pass `--confirmation-token <token>` when running `--apply`.
 - Ensure token context matches provider, environment, and current change-set hash.
 - Ensure `ENV_TYPEGEN_CONFIRMATION_SIGNING_KEY` is set to the same value used to create the token.
 - A token that was already presented is rejected as a replay. Create a new one.
+
+### Apply blocked due to missing evidence signing key
+
+- Set `ENV_TYPEGEN_EVIDENCE_SIGNING_KEY` where `sync-apply --apply` runs.
+- The token is not spent by a run blocked for this reason. Retry with the same token.
+- Dry-run works without the key. Its evidence is then marked `algorithm: "none"` and
+  `keyId: "unsigned"`, and it never verifies.
 
 ### Apply blocked in protected environments
 

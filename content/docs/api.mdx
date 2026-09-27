@@ -498,13 +498,16 @@ env-typegen sync-apply vercel \
   --config env-typegen.config.mjs \
   --apply \
   --preflight-file reports/preflight.json \
-  --confirmation-token etgac.v1.<base64url-payload>.<hmac-sha256-signature> \
+  --confirmation-token "$SYNC_APPLY_CONFIRMATION_TOKEN" \
   --protected-branch \
   --json
 ```
 
 Apply mode exits non-zero when any write guard blocks execution. Token validation
-requires `ENV_TYPEGEN_CONFIRMATION_SIGNING_KEY` in every environment.
+requires `ENV_TYPEGEN_CONFIRMATION_SIGNING_KEY` in every environment, and apply mode also
+requires `ENV_TYPEGEN_EVIDENCE_SIGNING_KEY`. Create the token with
+`env-typegen confirmation-token`, see
+[Sync Apply](/docs/sync-apply#creating-a-confirmation-token).
 
 ### Policy pack resolution integration
 
@@ -591,6 +594,8 @@ Recommended automation sequence:
 ## Confirmation token API
 
 Use these when generating or validating the signed one-time token required by `sync-apply --apply`.
+From the command line, `env-typegen confirmation-token` creates the same token, see
+[Sync Apply](/docs/sync-apply#creating-a-confirmation-token).
 
 ```typescript
 import {
