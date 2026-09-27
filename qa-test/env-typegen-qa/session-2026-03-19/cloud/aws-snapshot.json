@@ -1,9 +1,0 @@
-{
-  "Parameters": [
-    { "Name": "/prod/SERVICE_URL", "Value": "https://api.example.com" },
-    { "Name": "/prod/PORT", "Value": "3000" },
-    { "Name": "/prod/ENABLE_ANALYTICS", "Value": "true" },
-    { "Name": "/prod/NODE_ENV", "Value": "development" },
-    { "Name": "/prod/SECRET_TOKEN", "Value": "from-aws" }
-  ]
-}
