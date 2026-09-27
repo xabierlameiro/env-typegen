@@ -114,6 +114,6 @@ describe("Button", () => {
   it("should not show spinner when not loading", () => {
     render(<Button>Submit</Button>);
     const spinners = document.querySelectorAll(".animate-spin");
-    expect(spinners.length).toBe(0);
+    expect(spinners).toHaveLength(0);
   });
 });
