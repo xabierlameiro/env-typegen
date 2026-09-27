@@ -18,6 +18,12 @@ updates:
     commit-message:
       prefix: "chore(deps)"
       include: "scope"
+    ignore:
+      # Node types follow the Node version in .nvmrc and the package's support floor.
+      # A major is bumped by hand together with the Node version.
+      - dependency-name: "@types/node"
+        update-types:
+          - "version-update:semver-major"
     groups:
       # Batch all patch/minor Next.js ecosystem updates
       nextjs:
