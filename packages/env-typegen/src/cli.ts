@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { inspect, parseArgs } from "node:util";
 
+import { runConfirmationTokenCommand } from "./commands/confirmation-token-command.js";
 import { runPlanCommand } from "./commands/plan-command.js";
 import { runPullCommand } from "./commands/pull-command.js";
 import { runSyncApplyCommand } from "./commands/sync-apply-command.js";
@@ -35,6 +36,7 @@ const HELP_TEXT = [
   "  env-typegen pull <provider> [options]",
   "  env-typegen plan [options]",
   "  env-typegen sync-apply <provider> [options]",
+  "  env-typegen confirmation-token <provider> [options]",
   "  env-typegen sync-preview <provider> [options]",
   "  env-typegen verify [options]",
   "  env-typegen check [options]",
@@ -207,6 +209,20 @@ async function maybeRunSyncApplySubcommand(argv: string[]): Promise<boolean> {
   return true;
 }
 
+async function maybeRunConfirmationTokenSubcommand(argv: string[]): Promise<boolean> {
+  const maybeSubcommand = argv[0];
+  if (maybeSubcommand !== "confirmation-token") {
+    return false;
+  }
+
+  const exitCode = await runConfirmationTokenCommand(argv.slice(1));
+  if (exitCode !== 0) {
+    process.exitCode = exitCode;
+  }
+
+  return true;
+}
+
 /** Resolve the config file at an explicit user-supplied path, with an existence check. */
 async function loadExplicitConfig(
   configPath: string,
@@ -281,6 +297,9 @@ export async function runCli(argv: string[] = process.argv.slice(2)): Promise<vo
     return;
   }
   if (await maybeRunSyncApplySubcommand(normalizedArgv)) {
+    return;
+  }
+  if (await maybeRunConfirmationTokenSubcommand(normalizedArgv)) {
     return;
   }
   if (await maybeRunSyncPreviewSubcommand(normalizedArgv)) {

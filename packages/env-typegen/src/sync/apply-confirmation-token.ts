@@ -2,8 +2,8 @@ import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 
 const APPLY_CONFIRMATION_TOKEN_PREFIX = "etgac";
 const APPLY_CONFIRMATION_TOKEN_VERSION = "v1";
-const APPLY_CONFIRMATION_DEFAULT_TTL_SECONDS = 300;
-const APPLY_CONFIRMATION_MAX_TTL_SECONDS = 900;
+export const APPLY_CONFIRMATION_DEFAULT_TTL_SECONDS = 300;
+export const APPLY_CONFIRMATION_MAX_TTL_SECONDS = 900;
 const APPLY_CONFIRMATION_MIN_SIGNING_KEY_LENGTH = 32;
 
 export type ApplyConfirmationTokenPayload = {

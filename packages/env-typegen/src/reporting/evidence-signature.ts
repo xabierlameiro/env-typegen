@@ -1,9 +1,13 @@
-import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
+
+export const UNSIGNED_EVIDENCE_KEY_ID = "unsigned";
 
 export type EvidenceSignature = {
   version: 1;
+  /** `unsigned` when no signing key was configured. */
   keyId: string;
-  algorithm: "hmac-sha256";
+  /** `none` marks evidence that carries no signature and can never be verified. */
+  algorithm: "hmac-sha256" | "none";
   payloadHash: string;
   signature: string;
   signatureId: string;
@@ -30,9 +34,9 @@ function isTimingSafeSignatureMatch(params: {
   return timingSafeEqual(expectedSignatureBuffer, providedSignatureBuffer);
 }
 
-let nonProductionSigningSecret: string | undefined;
-
-function resolveSigningSecret(secret: string | undefined): string {
+// The key is never generated here. A signature made with a per-process random key
+// cannot be verified by anyone once the process exits.
+function resolveSigningSecret(secret: string | undefined): string | undefined {
   if (secret !== undefined && secret.length > 0) {
     return secret;
   }
@@ -42,17 +46,11 @@ function resolveSigningSecret(secret: string | undefined): string {
     return envSecret;
   }
 
-  if (process.env.NODE_ENV === "production") {
-    throw new Error(
-      "ENV_TYPEGEN_EVIDENCE_SIGNING_KEY is required in production for evidence signing.",
-    );
-  }
+  return undefined;
+}
 
-  if (nonProductionSigningSecret === undefined) {
-    nonProductionSigningSecret = randomBytes(32).toString("hex");
-  }
-
-  return nonProductionSigningSecret;
+export function hasEvidenceSigningKey(secret?: string): boolean {
+  return resolveSigningSecret(secret) !== undefined;
 }
 
 export function signEvidenceHash(params: {
@@ -63,7 +61,27 @@ export function signEvidenceHash(params: {
   signedAt?: string;
 }): EvidenceSignature {
   const payloadHash = `${params.bundleHash}:${params.lifecycleHash}`;
+  const signedAt = params.signedAt ?? new Date().toISOString();
   const secret = resolveSigningSecret(params.secret);
+
+  if (secret === undefined) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "ENV_TYPEGEN_EVIDENCE_SIGNING_KEY is required in production for evidence signing.",
+      );
+    }
+
+    return {
+      version: 1,
+      keyId: UNSIGNED_EVIDENCE_KEY_ID,
+      algorithm: "none",
+      payloadHash,
+      signature: "",
+      signatureId: toHexDigest(`${UNSIGNED_EVIDENCE_KEY_ID}:${payloadHash}`).slice(0, 24),
+      signedAt,
+    };
+  }
+
   const signature = createHmac("sha256", secret).update(payloadHash, "utf8").digest("hex");
   const signatureId = toHexDigest(`${params.keyId ?? "default"}:${signature}`).slice(0, 24);
 
@@ -74,7 +92,7 @@ export function signEvidenceHash(params: {
     payloadHash,
     signature,
     signatureId,
-    signedAt: params.signedAt ?? new Date().toISOString(),
+    signedAt,
   };
 }
 
@@ -84,6 +102,10 @@ export function verifyEvidenceSignature(params: {
   signature: EvidenceSignature;
   secret?: string;
 }): boolean {
+  if (params.signature.algorithm !== "hmac-sha256" || !hasEvidenceSigningKey(params.secret)) {
+    return false;
+  }
+
   const expected = signEvidenceHash({
     bundleHash: params.bundleHash,
     lifecycleHash: params.lifecycleHash,

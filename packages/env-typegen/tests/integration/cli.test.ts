@@ -11,6 +11,7 @@ const PACKAGE_ROOT = path.resolve(CURRENT_DIR, "../..");
 const DIST_CLI = path.resolve(PACKAGE_ROOT, "dist/cli.js");
 const DIST_INDEX_URL = pathToFileURL(path.resolve(PACKAGE_ROOT, "dist/index.js")).href;
 const CONFIRMATION_SIGNING_KEY = "integration-confirmation-signing-key-01";
+const EVIDENCE_SIGNING_KEY = "integration-evidence-signing-key-01";
 
 /** Run the built CLI synchronously and return stdout as a string. */
 function runBuiltCli(args: string[], cwd: string): string {
@@ -30,7 +31,10 @@ type SyncApplyRun = { status: number | null; stdout: string };
 
 /** Run `sync-apply` in its own process, with or without the confirmation signing key. */
 function runSyncApply(args: string[], signingKey: string | undefined): SyncApplyRun {
-  const env = { ...process.env };
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    ENV_TYPEGEN_EVIDENCE_SIGNING_KEY: EVIDENCE_SIGNING_KEY,
+  };
   delete env.ENV_TYPEGEN_CONFIRMATION_SIGNING_KEY;
   if (signingKey !== undefined) {
     env.ENV_TYPEGEN_CONFIRMATION_SIGNING_KEY = signingKey;
@@ -62,6 +66,60 @@ function createTokenInSeparateProcess(changeSetHash: string): string {
     throw new Error(`Token creation failed.\nstderr: ${result.stderr}`);
   }
   return result.stdout;
+}
+
+/** Create a confirmation token with the `confirmation-token` command, in its own process. */
+function createTokenWithCli(args: string[]): string {
+  const result = spawnSync("node", [DIST_CLI, "confirmation-token", ...args], {
+    cwd: PACKAGE_ROOT,
+    encoding: "utf8",
+    env: { ...process.env, ENV_TYPEGEN_CONFIRMATION_SIGNING_KEY: CONFIRMATION_SIGNING_KEY },
+  });
+  if (result.status !== 0) {
+    throw new Error(`Token creation failed.\nstderr: ${result.stderr}`);
+  }
+  return result.stdout.trim();
+}
+
+/** Write an adapter, a config and an env file that differ in one variable. */
+async function writeSyncApplyFixture(fixtureDir: string): Promise<string[]> {
+  const adapterPath = path.join(fixtureDir, "apply-adapter.mjs");
+  const configPath = path.join(fixtureDir, "env-typegen.config.mjs");
+  const envFilePath = path.join(fixtureDir, "sync.env");
+
+  await writeFile(
+    adapterPath,
+    [
+      "export default {",
+      '  name: "apply-adapter",',
+      '  pull: async () => ({ values: { PORT: "3000" } }),',
+      "  push: async () => undefined,",
+      "};",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+  await writeFile(
+    configPath,
+    [
+      "export default {",
+      '  input: ".env.example",',
+      `  providers: { demo: { adapter: ${JSON.stringify(adapterPath)} } },`,
+      // The default policy blocks any drift. Advisory mode lets the change through.
+      '  policy: { mode: "advisory" },',
+      "  writePolicy: {",
+      "    enableApply: true,",
+      "    requirePreflight: false,",
+      `    confirmationNonceStorePath: ${JSON.stringify(path.join(fixtureDir, "confirmation-nonces"))},`,
+      "  },",
+      "};",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+  await writeFile(envFilePath, "PORT=4000\n", "utf8");
+
+  return ["demo", "--config", configPath, "--env-file", envFilePath];
 }
 
 function readGuardReasons(run: SyncApplyRun): string {
@@ -255,6 +313,28 @@ describe("cli integration", () => {
     const applyWithoutKey = runSyncApply(applyArgs, undefined);
     expect(applyWithoutKey.status).toBe(1);
     expect(readGuardReasons(applyWithoutKey)).toContain("ENV_TYPEGEN_CONFIRMATION_SIGNING_KEY");
+
+    const firstApply = runSyncApply(applyArgs, CONFIRMATION_SIGNING_KEY);
+    expect(firstApply.status).toBe(0);
+
+    const replayedApply = runSyncApply(applyArgs, CONFIRMATION_SIGNING_KEY);
+    expect(replayedApply.status).toBe(1);
+    expect(readGuardReasons(replayedApply)).toContain("replay detected");
+  });
+
+  it("should accept a token created by the confirmation-token command", async () => {
+    dir = await mkdtemp(path.join(tmpdir(), "env-typegen-int-test-"));
+    const fixtureArgs = await writeSyncApplyFixture(dir);
+
+    const token = createTokenWithCli(fixtureArgs);
+    const applyArgs = [...fixtureArgs, "--json", "--apply", "--confirmation-token", token];
+
+    const otherEnvironment = runSyncApply(
+      [...applyArgs, "--env", "staging"],
+      CONFIRMATION_SIGNING_KEY,
+    );
+    expect(otherEnvironment.status).toBe(1);
+    expect(readGuardReasons(otherEnvironment)).toContain("environment does not match");
 
     const firstApply = runSyncApply(applyArgs, CONFIRMATION_SIGNING_KEY);
     expect(firstApply.status).toBe(0);

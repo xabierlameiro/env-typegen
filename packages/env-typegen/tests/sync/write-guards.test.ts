@@ -118,4 +118,34 @@ describe("evaluateWriteGuards", () => {
     expect(result.allowed).toBe(false);
     expect(result.reasons).toContain("A one-time confirmation token is required for apply mode.");
   });
+
+  it("should block apply when the evidence signing key is missing", () => {
+    const result = evaluateWriteGuards({
+      mode: "apply",
+      environment: "production",
+      policyDecision: "allow",
+      writeEnabled: true,
+      isProtectedEnvironment: false,
+      isProtectedBranch: true,
+      preflightValidation: {
+        isValid: true,
+        reasons: [],
+      },
+      confirmationTokenValidation: {
+        isValid: true,
+        reasons: [],
+      },
+      evidenceSigningValidation: {
+        isValid: false,
+        reasons: ["ENV_TYPEGEN_EVIDENCE_SIGNING_KEY is required for apply mode."],
+      },
+      hasOverrideReason: true,
+    });
+
+    expect(result.allowed).toBe(false);
+    expect(result.reasons).toEqual([
+      "ENV_TYPEGEN_EVIDENCE_SIGNING_KEY is required for apply mode.",
+    ]);
+    expect(result.requiredChecks).toContain("evidence-signing-key");
+  });
 });

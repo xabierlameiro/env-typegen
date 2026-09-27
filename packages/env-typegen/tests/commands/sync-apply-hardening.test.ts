@@ -18,6 +18,7 @@ describe("runSyncApplyCommand hardening", () => {
   beforeEach(async () => {
     dir = await mkdtemp(path.join(tmpdir(), "env-typegen-sync-apply-hardening-"));
     vi.stubEnv("ENV_TYPEGEN_CONFIRMATION_SIGNING_KEY", "hardening-test-confirmation-signing-key");
+    vi.stubEnv("ENV_TYPEGEN_EVIDENCE_SIGNING_KEY", "hardening-test-evidence-signing-key");
   });
 
   afterEach(() => {
@@ -442,6 +443,82 @@ describe("runSyncApplyCommand hardening", () => {
 
     const replayedCode = await runSyncApplyCommand([...args, "--protected-branch"]);
     expect(replayedCode).toBe(1);
+  });
+
+  it("should block apply without an evidence signing key and leave the token unspent", async () => {
+    const adapterPath = await writeAdapter(
+      "apply-adapter.mjs",
+      [
+        "export default {",
+        '  name: "apply-adapter",',
+        '  pull: async () => ({ values: { PORT: "3000" } }),',
+        "  push: async () => undefined,",
+        "};",
+        "",
+      ].join("\n"),
+    );
+
+    const configPath = await writeConfig(
+      [
+        "export default {",
+        '  input: ".env.example",',
+        "  providers: {",
+        `    demo: { adapter: ${JSON.stringify(adapterPath)} },`,
+        "  },",
+        "  writePolicy: {",
+        `    confirmationNonceStorePath: ${JSON.stringify(path.join(dir, "confirmation-nonces"))},`,
+        "    enableApply: true,",
+        "    requirePreflight: false,",
+        "  },",
+        "};",
+        "",
+      ].join("\n"),
+    );
+
+    const envPath = path.join(dir, ".env");
+    await writeFile(envPath, "PORT=3000\n", "utf8");
+
+    const changeSetHash = calculateChangeSetHash(
+      buildChangeSetFromMaps({
+        localValues: { PORT: "3000" },
+        remoteValues: { PORT: "3000" },
+      }),
+    );
+    const { token } = createContextBoundToken({
+      provider: "demo",
+      environment: "development",
+      changeSetHash,
+    });
+    const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    const args = [
+      "demo",
+      "--config",
+      configPath,
+      "--env-file",
+      envPath,
+      "--apply",
+      "--confirmation-token",
+      token,
+      "--json",
+    ];
+
+    vi.stubEnv("ENV_TYPEGEN_EVIDENCE_SIGNING_KEY", "");
+    const blockedCode = await runSyncApplyCommand(args);
+
+    expect(blockedCode).toBe(1);
+    const blockedReport = JSON.parse(
+      stdoutSpy.mock.calls
+        .map((call) => String(call[0]))
+        .join("")
+        .trim(),
+    ) as { guardResult: { reasons: string[] } };
+    expect(blockedReport.guardResult.reasons.join(" ")).toContain(
+      "ENV_TYPEGEN_EVIDENCE_SIGNING_KEY",
+    );
+
+    vi.stubEnv("ENV_TYPEGEN_EVIDENCE_SIGNING_KEY", "hardening-test-evidence-signing-key");
+    const allowedCode = await runSyncApplyCommand(args);
+    expect(allowedCode).toBe(0);
   });
 
   it("should block apply when attestation context mismatches execution context", async () => {
