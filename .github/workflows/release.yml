@@ -35,7 +35,18 @@ jobs:
           # do this. Authentication comes from npm trusted publishing (OIDC), not a token.
           registry-url: https://registry.npmjs.org
       # pnpm publish delegates to the npm CLI. Trusted publishing needs npm 11.5.1 or later.
-      - run: npm install --global npm@^11.5.1
+      # The Node version in .nvmrc bundles it, so nothing is installed here. This check
+      # stops the job before the publish if .nvmrc ever brings an older npm.
+      - run: |
+          node -e '
+            const [major, minor, patch] = process.argv[1].split(".").map(Number);
+            const supported =
+              major > 11 || (major === 11 && (minor > 5 || (minor === 5 && patch >= 1)));
+            if (!supported) {
+              console.error(`npm ${process.argv[1]} is older than 11.5.1`);
+              process.exit(1);
+            }
+          ' "$(npm --version)"
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @xlameiro/env-typegen lint
       - run: pnpm --filter @xlameiro/env-typegen type-check
