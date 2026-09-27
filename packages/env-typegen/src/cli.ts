@@ -6,6 +6,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { inspect, parseArgs } from "node:util";
 
+import { runConfirmationTokenCommand } from "./commands/confirmation-token-command.js";
 import { runPlanCommand } from "./commands/plan-command.js";
 import { runPullCommand } from "./commands/pull-command.js";
 import { runSyncApplyCommand } from "./commands/sync-apply-command.js";
@@ -45,6 +46,7 @@ const HELP_TEXT = [
   "  plan          Build a sync plan from source to destination",
   "  sync-preview  Preview a sync operation without writes",
   "  sync-apply    Apply a planned sync operation",
+  "  confirmation-token  Create the signed token that sync-apply --apply requires",
   "",
   "Options:",
   "  -i, --input <path>      Input env file (default: auto-detect .env.example)",
@@ -321,6 +323,7 @@ async function dispatchSubcommand(argv: string[]): Promise<boolean> {
   if (await maybeRunPullSubcommand(argv)) return true;
   if (await maybeRunPlanSubcommand(argv)) return true;
   if (await maybeRunSyncApplySubcommand(argv)) return true;
+  if (await maybeRunConfirmationTokenSubcommand(argv)) return true;
   if (await maybeRunSyncPreviewSubcommand(argv)) return true;
   if (await maybeRunValidationSubcommand(argv)) return true;
   return false;
@@ -400,6 +403,20 @@ async function maybeRunSyncApplySubcommand(argv: string[]): Promise<boolean> {
   }
 
   const exitCode = await runSyncApplyCommand(argv.slice(1));
+  if (exitCode !== 0) {
+    process.exitCode = exitCode;
+  }
+
+  return true;
+}
+
+async function maybeRunConfirmationTokenSubcommand(argv: string[]): Promise<boolean> {
+  const maybeSubcommand = argv[0];
+  if (maybeSubcommand !== "confirmation-token") {
+    return false;
+  }
+
+  const exitCode = await runConfirmationTokenCommand(argv.slice(1));
   if (exitCode !== 0) {
     process.exitCode = exitCode;
   }

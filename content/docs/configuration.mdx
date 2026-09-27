@@ -165,6 +165,9 @@ export default defineConfig({
 
 CLI flags override config file values when both are provided.
 
+`--format` is the preferred generator flag. `--generator` is kept as a
+backward-compatible alias for existing scripts.
+
 | Flag          | Alias | Description                                    |
 | ------------- | ----- | ---------------------------------------------- |
 | `--input`     | `-i`  | Path to `.env.example` file(s). Repeatable     |
@@ -252,6 +255,153 @@ export default defineConfig({
 - `diff` defaults to `.env,.env.production` when targets are not provided.
 - When `--contract` is omitted, env-typegen auto-discovers `env.contract.mjs` or `env.contract.js`.
 - All paths are resolved from your current working directory.
+
+## Configuration type reference
+
+The sub-types that compose `EnvTypegenConfig`. The package entry point exports
+`EnvTypegenConfig` and `GeneratorName`. Reach any other sub-type through an indexed access:
+
+```typescript
+import type { EnvTypegenConfig } from "@xlameiro/env-typegen";
+
+type WritePolicy = NonNullable<EnvTypegenConfig["writePolicy"]>;
+```
+
+### `EnvTypegenProviderConfig`
+
+Shape of each entry in the `providers` map:
+
+```typescript
+type EnvTypegenProviderConfig = {
+  adapter: string; // Path to the provider adapter module
+  token?: string; // Auth token (supports ${ENV_VAR} interpolation)
+  projectId?: string; // Provider project identifier
+  options?: Record<string, unknown>; // Adapter-specific options
+};
+```
+
+### `EnvTypegenEnvironmentConfig`
+
+Shape of each entry in the `environments` map:
+
+```typescript
+type EnvTypegenEnvironmentConfig = {
+  source: string | string[]; // Provider key, "local", or a chain of sources
+  targets?: string[]; // Provider-specific target alias(es)
+  metadata?: Record<string, unknown>; // Provider-specific extension point
+};
+```
+
+### `EnvTypegenRuleSet`
+
+Base validation policy rules. Used directly in `rules` or as values in `perEnvironment`:
+
+```typescript
+type EnvTypegenRuleSet = {
+  strict?: boolean; // Treat undeclared vars as errors (default: true)
+  allowExtra?: boolean; // Allow vars not in contract (overrides strict for extras)
+  requireAll?: boolean; // Require all contract vars to be present
+};
+```
+
+### `EnvTypegenRulesConfig`
+
+Extends `EnvTypegenRuleSet` with optional per-environment overrides:
+
+```typescript
+type EnvTypegenRulesConfig = EnvTypegenRuleSet & {
+  perEnvironment?: Record<string, EnvTypegenRuleSet>;
+};
+```
+
+### `EnvTypegenPolicyPackLockConfig`
+
+Controls lockfile integrity for installed policy packs:
+
+```typescript
+type EnvTypegenPolicyPackLockConfig = {
+  path?: string; // Path to the lock file used by policy pack resolution
+  strict?: boolean; // Fail when a referenced pack has no lock entry (default: true)
+};
+```
+
+### `EnvTypegenPolicyPackFetchConfig`
+
+Controls remote pack fetch behavior:
+
+```typescript
+type EnvTypegenPolicyPackFetchConfig = {
+  timeoutMs?: number; // HTTP fetch timeout in milliseconds
+  maxRetries?: number; // Retry count on network errors
+  retryDelayMs?: number; // Delay between retries
+  cacheTtlMs?: number; // Time-to-live for cached pack responses
+  cacheDir?: string; // Local cache directory path
+  offline?: boolean; // Disable remote fetch; use cache only
+};
+```
+
+### `EnvTypegenPolicyPackTrustConfig`
+
+Controls signature trust validation for policy packs:
+
+```typescript
+type EnvTypegenPolicyPackTrustConfig = {
+  mode?: "strict" | "tolerant"; // strict blocks missing or invalid signatures, tolerant allows unsigned packs
+  allowedSigners?: string[]; // Allowed signer identifiers
+  enforceExpiry?: boolean; // Reject packs with expired signatures
+  externalTrustRoot?: {
+    provider: "aws-kms" | "gcp-kms" | "hashicorp-vault" | "external";
+    keyringPath?: string; // Keyring document used as the trust root source
+  };
+};
+```
+
+### `EnvTypegenPolicyDistributionConfig`
+
+Controls policy distribution channel and sink for governance rollout:
+
+```typescript
+type EnvTypegenPolicyDistributionConfig = {
+  channel?: PolicyDistributionChannel; // "dev" | "stage" | "prod"
+  sink?: PolicyDistributionSink; // "local" | "s3" | "github-packages"
+  destination?: string; // Sink-specific target path or URL
+};
+```
+
+See the [Policy Packs](/docs/policy-packs) page for promotion channel rules.
+
+### `EnvTypegenTemplatesConfig`
+
+Default values used during multi-repo bootstrap orchestration:
+
+```typescript
+type EnvTypegenTemplatesConfig = {
+  defaultTemplate?: "web-app" | "library"; // Used when a fleet manifest entry omits `template`
+  defaultEnforcementLevel?: "advisory" | "standard" | "strict";
+  defaultPolicyChannel?: "dev" | "stage" | "prod";
+};
+```
+
+### `EnvTypegenWritePolicyConfig`
+
+Write controls for `sync-apply` runtime behavior:
+
+```typescript
+type EnvTypegenWritePolicyConfig = {
+  enableApply?: boolean; // Master switch for write operations
+  protectedEnvironments?: string[]; // Environments that require protected branch execution
+  requirePreflight?: boolean; // Require preflight report before apply
+  auditLogPath?: string; // Path to write the apply audit log
+  confirmationNonceStorePath?: string; // Directory that records used confirmation tokens (default: .env-typegen/confirmation-nonces)
+  // executionBudget, sloPolicy, incidentState — see Operations and
+  // Governance Chaos and SLO pages for their shapes and usage
+};
+```
+
+> `executionBudget`, `sloPolicy`, and `incidentState` reference governance-layer
+> types that are not re-exported from the main package entry point.
+> See [Operations](/docs/operations) and [Governance Chaos and SLO](/docs/governance-chaos-and-slo)
+> for their shapes and usage.
 
 ## FAQ
 

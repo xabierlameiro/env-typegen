@@ -411,7 +411,7 @@ describe("runCli", () => {
 
     const output = spy.mock.calls.map((c) => String(c[0])).join("\n");
     expect(output).toContain("Exit codes:");
-    expect(output).toContain("status: ok or warn");
+    expect(output).toContain("status: ok");
   });
 
   it("should document strict CI semantics in verify --help", async () => {

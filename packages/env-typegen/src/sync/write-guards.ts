@@ -17,7 +17,14 @@ export type WriteGuardContext = {
     isValid: boolean;
     reasons: string[];
   };
-  hasConfirmationToken: boolean;
+  confirmationTokenValidation: {
+    isValid: boolean;
+    reasons: string[];
+  };
+  evidenceSigningValidation?: {
+    isValid: boolean;
+    reasons: string[];
+  };
   hasOverrideReason: boolean;
 };
 
@@ -49,6 +56,10 @@ export function evaluateWriteGuards(context: WriteGuardContext): WriteGuardResul
     requiredChecks.push("preflight-attestation-validation");
   }
 
+  if (context.evidenceSigningValidation !== undefined) {
+    requiredChecks.push("evidence-signing-key");
+  }
+
   if (context.writeEnabled === false) {
     reasons.push("Write mode is disabled in current configuration.");
   }
@@ -61,8 +72,12 @@ export function evaluateWriteGuards(context: WriteGuardContext): WriteGuardResul
     reasons.push(...context.preflightValidation.reasons);
   }
 
-  if (!context.hasConfirmationToken) {
-    reasons.push("A one-time confirmation token is required for apply mode.");
+  if (!context.confirmationTokenValidation.isValid) {
+    reasons.push(...context.confirmationTokenValidation.reasons);
+  }
+
+  if (context.evidenceSigningValidation?.isValid === false) {
+    reasons.push(...context.evidenceSigningValidation.reasons);
   }
 
   if (!context.hasOverrideReason) {

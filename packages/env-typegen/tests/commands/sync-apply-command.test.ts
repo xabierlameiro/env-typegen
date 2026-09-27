@@ -15,6 +15,7 @@ describe("runSyncApplyCommand", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllEnvs();
   });
 
   async function writeAdapter(filename: string, content: string): Promise<string> {
@@ -40,6 +41,7 @@ describe("runSyncApplyCommand", () => {
   });
 
   it("should run in dry-run mode by default and return 0", async () => {
+    vi.stubEnv("ENV_TYPEGEN_EVIDENCE_SIGNING_KEY", "sync-apply-test-evidence-signing-key");
     const adapterPath = await writeAdapter(
       "sync-adapter.mjs",
       [
@@ -117,6 +119,56 @@ describe("runSyncApplyCommand", () => {
     expect(payload.governanceSummary.rollout.cohort).toBe("ramp");
     expect(payload.governanceSummary.rollout.action).toBe("advance");
     expect(payload.governanceSummary.rollout.canProceed).toBe(true);
+  });
+
+  it("should mark dry-run evidence as unsigned when no evidence signing key is set", async () => {
+    vi.stubEnv("ENV_TYPEGEN_EVIDENCE_SIGNING_KEY", "");
+    const adapterPath = await writeAdapter(
+      "sync-adapter.mjs",
+      [
+        "export default {",
+        '  name: "sync-adapter",',
+        '  pull: async () => ({ values: { PORT: "3000" } }),',
+        "  push: async () => undefined,",
+        "};",
+        "",
+      ].join("\n"),
+    );
+    const configPath = await writeConfig(
+      [
+        "export default {",
+        '  input: ".env.example",',
+        `  providers: { demo: { adapter: ${JSON.stringify(adapterPath)} } },`,
+        "};",
+        "",
+      ].join("\n"),
+    );
+    const envPath = path.join(dir, ".env");
+    await writeFile(envPath, "PORT=3000\n", "utf8");
+
+    const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    const code = await runSyncApplyCommand([
+      "demo",
+      "--config",
+      configPath,
+      "--env-file",
+      envPath,
+      "--json",
+    ]);
+
+    expect(code).toBe(0);
+    const payload = JSON.parse(
+      stdoutSpy.mock.calls
+        .map((call) => String(call[0]))
+        .join("")
+        .trim(),
+    ) as { evidenceBundle: { signature: { algorithm: string; keyId: string; signature: string } } };
+
+    expect(payload.evidenceBundle.signature).toMatchObject({
+      algorithm: "none",
+      keyId: "unsigned",
+      signature: "",
+    });
   });
 
   it("should block apply mode when writePolicy.enableApply is false", async () => {

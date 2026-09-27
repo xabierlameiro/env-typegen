@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AuditEvent } from "../../src/audit/audit-event.js";
 import { buildEvidenceBundle } from "../../src/reporting/evidence-bundle.js";
@@ -35,7 +35,12 @@ function makeAuditEvents(): AuditEvent[] {
 }
 
 describe("buildEvidenceBundle", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("should produce a stable evidence schema and deterministic hash correlation fields", () => {
+    vi.stubEnv("ENV_TYPEGEN_EVIDENCE_SIGNING_KEY", "evidence-bundle-test-signing-key");
     const governanceSummary = {
       stage: "apply" as const,
       provider: "demo",

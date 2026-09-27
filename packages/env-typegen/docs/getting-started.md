@@ -61,7 +61,7 @@ env-typegen sync-preview vercel --env-file .env --config env-typegen.config.mjs
 
 `pull` is read-only in v1 and does not write values back to cloud providers.
 
-Apply mode in `sync-apply` requires a one-time `--confirmation-token` in addition to other guardrails.
+Apply mode in `sync-apply` requires a signed one-time `--confirmation-token` (nonce + ttl + signature with context binding) in addition to other guardrails. Create it with `env-typegen confirmation-token <provider>`. Apply mode also requires `ENV_TYPEGEN_EVIDENCE_SIGNING_KEY`.
 
 ### JSON output for CI
 
