@@ -71,6 +71,9 @@ llms.txt
 skills-lock.json
 .agents/**
 .github/**
+!.github/hooks/
+!.github/hooks/scripts/
+!.github/hooks/scripts/git-secret-scan.sh
 .vscode/**
 
 # QA

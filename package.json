@@ -15,9 +15,9 @@
     "lint": "eslint --max-warnings=0",
     "type-check": "tsc --noEmit",
     "clean": "rm -rf .next .turbo",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
+    "test": "NODE_OPTIONS=--no-experimental-webstorage vitest run",
+    "test:watch": "NODE_OPTIONS=--no-experimental-webstorage vitest",
+    "test:coverage": "NODE_OPTIONS=--no-experimental-webstorage vitest run --coverage",
     "test:e2e": "playwright test --pass-with-no-tests",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
@@ -47,9 +47,23 @@
       "husky"
     ],
     "overrides": {
-      "flatted": ">=3.4.0",
-      "undici": ">=7.24.0"
-    }
+      "flatted": ">=3.4.2",
+      "undici": ">=7.28.0 <8.0.0",
+      "@babel/core": ">=7.29.6",
+      "minimatch@3.1.5>brace-expansion": ">=1.1.18 <2.0.0",
+      "minimatch@>=10>brace-expansion": ">=5.0.9",
+      "esbuild": ">=0.28.1",
+      "fast-uri": ">=3.1.6 <4.0.0",
+      "js-yaml@^4.0.0": ">=4.3.2 <5.0.0",
+      "path-to-regexp": ">=8.4.0",
+      "picomatch": ">=4.0.4",
+      "postcss": ">=8.5.18",
+      "sharp": ">=0.35.4",
+      "smol-toml": ">=1.6.1",
+      "ws": ">=7.5.11",
+      "yaml": ">=2.8.3"
+    },
+    "auditConfig": {}
   },
   "dependencies": {
     "@t3-oss/env-nextjs": "^0.13.10",
@@ -59,7 +73,7 @@
     "fumadocs-core": "^16.6.17",
     "fumadocs-mdx": "^14.2.10",
     "fumadocs-ui": "^16.6.17",
-    "next": "16.1.7",
+    "next": "16.3.3",
     "nuqs": "^2.8.9",
     "react": "19.2.4",
     "react-dom": "19.2.4",
@@ -84,7 +98,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^5.1.4",
-    "@vitest/coverage-v8": "^4.1.0",
+    "@vitest/coverage-v8": "^4.1.11",
     "babel-plugin-react-compiler": "^1.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
@@ -100,6 +114,7 @@
     "tailwindcss": "^4",
     "typescript": "^5",
     "typescript-eslint": "^8.57.0",
-    "vitest": "^4.1.0"
+    "vite": "^7.3.6",
+    "vitest": "^4.1.11"
   }
 }

@@ -1,10 +1,8 @@
 import { APP_DESCRIPTION, APP_NAME } from "@/lib/constants";
 import { ImageResponse } from "next/og";
 
-// Edge runtime is intentional — ImageResponse initialises faster on edge.
-// The build warning about "disables static generation" is expected and harmless:
-// OG images are always dynamically generated and never statically pre-rendered.
-export const runtime = "edge";
+// Runs on the default Node.js runtime: next@16.3 rejects the `runtime` segment
+// config when `cacheComponents` is enabled, and the Edge Runtime is deprecated.
 // APP_NAME is also used in JSX below; export...from avoids an intermediate const.
 export { APP_NAME as alt } from "@/lib/constants";
 
