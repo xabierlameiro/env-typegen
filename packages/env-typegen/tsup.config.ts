@@ -10,7 +10,7 @@ export default defineConfig([
     sourcemap: true,
     treeshake: true,
     splitting: false,
-    target: "node18",
+    target: "node20",
   },
   // CLI (ESM only, with shebang injected via banner)
   {
@@ -24,7 +24,7 @@ export default defineConfig([
     banner: {
       js: "#!/usr/bin/env node",
     },
-    target: "node18",
+    target: "node20",
     onSuccess: "chmod +x dist/cli.js",
   },
 ]);
