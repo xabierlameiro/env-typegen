@@ -82,3 +82,6 @@ skills-lock.json
 # QA sessions — commits smoke scripts + fixtures, ignores generated output
 qa-test/outputs/
 qa-test/reports/
+
+# Agent planning transcripts
+big_plan*.md
