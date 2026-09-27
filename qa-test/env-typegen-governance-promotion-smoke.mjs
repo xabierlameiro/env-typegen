@@ -16,6 +16,9 @@ const smokeConfirmationSigningKey =
   process.env.ENV_TYPEGEN_CONFIRMATION_SIGNING_KEY ??
   "env-typegen-smoke-confirmation-signing-key";
 process.env.ENV_TYPEGEN_CONFIRMATION_SIGNING_KEY = smokeConfirmationSigningKey;
+const smokeEvidenceSigningKey =
+  process.env.ENV_TYPEGEN_EVIDENCE_SIGNING_KEY ??
+  "env-typegen-smoke-evidence-signing-key";
 
 function runCommand(command, args, cwd) {
   return new Promise((resolve) => {
@@ -25,6 +28,7 @@ function runCommand(command, args, cwd) {
       env: {
         ...process.env,
         ENV_TYPEGEN_CONFIRMATION_SIGNING_KEY: smokeConfirmationSigningKey,
+        ENV_TYPEGEN_EVIDENCE_SIGNING_KEY: smokeEvidenceSigningKey,
       },
     });
 

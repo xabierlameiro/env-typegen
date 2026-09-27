@@ -11,12 +11,20 @@ const reportFilePath = path.join(
   reportsDirectory,
   "env-governance-forensics-smoke.json",
 );
+// The probe asserts a signed evidence bundle. Without a key the bundle is unsigned.
+const smokeEvidenceSigningKey =
+  process.env.ENV_TYPEGEN_EVIDENCE_SIGNING_KEY ??
+  "env-typegen-smoke-evidence-signing-key";
 
 function runCommand(command, args, cwd) {
   return new Promise((resolve) => {
     const child = spawn(command, args, {
       cwd,
       stdio: ["ignore", "pipe", "pipe"],
+      env: {
+        ...process.env,
+        ENV_TYPEGEN_EVIDENCE_SIGNING_KEY: smokeEvidenceSigningKey,
+      },
     });
 
     let stdout = "";
