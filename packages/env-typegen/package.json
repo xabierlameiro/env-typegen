@@ -1,36 +1,34 @@
 {
   "name": "@xlameiro/env-typegen",
-  "version": "0.1.9",
-  "description": "Generate type-safe TypeScript definitions, Zod schemas, and t3-env config from .env.example files",
+  "version": "0.2.0",
+  "description": "Stop using process.env wrong. Zero-config TypeScript types from .env.example.",
   "keywords": [
     "env",
     "dotenv",
     "typescript",
     "type-safe",
-    "codegen",
-    "cli",
-    "generator",
+    "zero-config",
+    "process-env",
+    "type-safe-env",
     "environment-variables",
+    "env-vars",
+    "cli",
+    "codegen",
+    "nextjs",
     "t3-env",
     "zod",
-    "nextjs",
-    "t3-stack",
-    "env-vars",
-    "type-generator",
     "declarations",
     "dotenv-typegen",
-    "schema-generator",
     "developer-tools",
-    "type-inference",
-    "build-tools"
+    "type-inference"
   ],
-  "homepage": "https://github.com/xlameiro/env-typegen",
+  "homepage": "https://github.com/xabierlameiro/env-typegen",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/xlameiro/env-typegen.git"
+    "url": "git+https://github.com/xabierlameiro/env-typegen.git"
   },
   "bugs": {
-    "url": "https://github.com/xlameiro/env-typegen/issues"
+    "url": "https://github.com/xabierlameiro/env-typegen/issues"
   },
   "license": "MIT",
   "author": "xlameiro",
@@ -56,7 +54,7 @@
     "CHANGELOG.md"
   ],
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "scripts": {
     "build": "tsup",

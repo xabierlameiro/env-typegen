@@ -3,21 +3,39 @@ name: Release
 on:
   push:
     branches: [main]
+    # Only what can change the published package. A docs or CI push does not re-run a
+    # publish that is already failing.
+    paths:
+      - "packages/env-typegen/**"
+      - ".changeset/**"
+      - "pnpm-lock.yaml"
+  # Manual retry, for example after renewing the npm credentials.
+  workflow_dispatch:
 
 permissions: read-all
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   release:
     runs-on: ubuntu-latest
     permissions:
+      # Required by npm provenance and by npm trusted publishing (OIDC).
       id-token: write
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
-          node-version: 22
+          node-version-file: .nvmrc
           cache: pnpm
+          # Writes the .npmrc that points at the registry. The changesets action used to
+          # do this. Authentication comes from npm trusted publishing (OIDC), not a token.
+          registry-url: https://registry.npmjs.org
+      # pnpm publish delegates to the npm CLI. Trusted publishing needs npm 11.5.1 or later.
+      - run: npm install --global npm@^11.5.1
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @xlameiro/env-typegen lint
       - run: pnpm --filter @xlameiro/env-typegen type-check
@@ -25,5 +43,4 @@ jobs:
       - run: pnpm --filter @xlameiro/env-typegen build
       - run: pnpm --filter @xlameiro/env-typegen release
         env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           HUSKY: 0

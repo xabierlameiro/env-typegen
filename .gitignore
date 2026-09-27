@@ -79,6 +79,12 @@ skills-lock.json
 # QA
 .qa/
 
-# QA sessions — commits fixtures + report, ignores generated output
+# QA sessions — commits smoke scripts + fixtures, ignores generated output
 qa-test/outputs/
-qa-test/reports/*.json
+qa-test/reports/
+
+# sync-apply record of used confirmation tokens
+.env-typegen/
+
+# Agent planning transcripts
+big_plan*.md

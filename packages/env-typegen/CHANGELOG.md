@@ -1,5 +1,54 @@
 # Changelog
 
+## 0.2.0
+
+### Minor Changes
+
+- ad34f3e: Drop Node.js 18 support. The package now requires Node.js 20 or later and is built for the `node20` target.
+- 4a2fafd: `env-typegen` now runs with no arguments. This changes the defaults of the `generate` command.
+
+  Breaking changes for users of 0.1.x who rely on defaults:
+  - The default output is `src/env.ts`. It was `env.generated.ts`.
+  - The default generator is `typescript` only. It was all four generators. Pass `--format` once per generator to get the others.
+  - When `--input` is omitted, the input is the first existing file among `.env.example`, `.env.example.local` and `.env`.
+
+  Added:
+  - `--check` exits with code 1 when the output file is out of sync with the input.
+  - `--mode augment` writes an `env.d.ts` augmentation instead of a module.
+  - `--help` lists the subcommands.
+
+  Explicit `--input`, `--output` and `--generator` values behave as before.
+
+- a85e1ed: `sync-apply --apply` now requires a signed confirmation token instead of a free-form string.
+  - The token is an HMAC-SHA256 signed value bound to the provider, the environment and the change-set hash, with an expiry of 15 minutes at most.
+  - `ENV_TYPEGEN_CONFIRMATION_SIGNING_KEY` is required wherever a token is created or validated. It must be at least 32 characters long.
+  - A token is single use. Used tokens are recorded in `.env-typegen/confirmation-nonces`, or in the directory set with `writePolicy.confirmationNonceStorePath`.
+  - New exports: `createApplyConfirmationToken`, `validateApplyConfirmationToken` and `buildSyncApplyCorrelationId`.
+  - New command: `env-typegen confirmation-token <provider>` creates the token for the current change set. It takes the same `--env`, `--env-file` and `--config` as `sync-apply`, plus `--ttl` and `--json`.
+  - Evidence signatures are compared in constant time.
+
+  Evidence is no longer signed with a key generated at runtime.
+  - `sync-apply --apply` now requires `ENV_TYPEGEN_EVIDENCE_SIGNING_KEY`. Without it the apply is blocked before any write, and the confirmation token is not spent.
+  - Outside production, evidence produced without the key is marked `algorithm: "none"` and `keyId: "unsigned"`, with an empty signature. Production still fails without the key.
+  - `verifyEvidenceSignature` returns `false` for unsigned evidence and when the verifier has no key.
+  - The `algorithm` field of an evidence signature is now `"hmac-sha256" | "none"`.
+
+## 0.1.10
+
+### Patch Changes
+
+- 52e5149: New docs
+- 9cc3d1f: ## Fuzzy Dancers Find — env-typegen QA deficiency fixes (D1-D12)
+
+### Added since 0.1.9
+
+- New commands: `pull`, `plan`, `sync-preview`, `sync-apply` and `verify`.
+- Provider adapters for Vercel, AWS SSM, AWS Secrets Manager and Docker.
+- `sync-apply` options `--strategy` (`fail-fast` or `fail-late`) and `--max-concurrency`.
+- Governance modules: policy packs, audit events, trust and evidence reporting.
+
+The `generate`, `check`, `diff` and `doctor` commands keep their flags and defaults.
+
 ## 0.1.9
 
 ### Patch Changes

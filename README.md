@@ -46,8 +46,12 @@ That creates drift, hidden deploy risk, and repetitive maintenance.
 # Install as a dev dependency
 pnpm add -D @xlameiro/env-typegen
 
-# Generate all outputs (typescript + zod + t3 + declaration)
-npx env-typegen -i .env.example -o src/env.generated.ts
+# Default CLI behavior: auto-detect .env.example and write TypeScript output to src/env.ts
+npx env-typegen
+
+# Custom output path + multiple formats
+# (use --format; --generator remains a backward-compatible alias)
+npx env-typegen -i .env.example -o src/env.generated.ts -f ts -f zod -f t3 -f declaration
 
 # Validate one env source against a contract
 npx env-typegen check --env .env --contract env.contract.mjs
@@ -62,6 +66,9 @@ npx env-typegen verify --env .env --contract env.contract.mjs
 2. Add `check` in CI as your first contract gate.
 3. Add `pull` to read provider state without write side effects.
 4. Add `verify` as the merge-blocking governance gate for pull requests and protected branches.
+
+Use `--format` as the preferred generator flag in scripts and docs. Keep `--generator` for
+backward compatibility with existing automation.
 
 ```bash
 npx env-typegen -i .env.example -o src/env.generated.ts -f ts -f zod
@@ -183,9 +190,6 @@ Conformance report artifact:
 - Trust model guide (package): [`packages/env-typegen/docs/governance-trust-model.md`](packages/env-typegen/docs/governance-trust-model.md)
 - Chaos and SLO guide (website): [`content/docs/governance-chaos-and-slo.mdx`](content/docs/governance-chaos-and-slo.mdx)
 - Chaos and SLO guide (package): [`packages/env-typegen/docs/governance-chaos-and-slo.md`](packages/env-typegen/docs/governance-chaos-and-slo.md)
-- Roadmap (Part 5): [`docs/roadmap/infra-governance-part5-roadmap.md`](docs/roadmap/infra-governance-part5-roadmap.md)
-- Roadmap (Part 6): [`docs/roadmap/infra-governance-part6-roadmap.md`](docs/roadmap/infra-governance-part6-roadmap.md)
-- Roadmap (Part 7): [`docs/roadmap/infra-governance-part7-roadmap.md`](docs/roadmap/infra-governance-part7-roadmap.md)
 
 Multi-repo bootstrap implementation:
 

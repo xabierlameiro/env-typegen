@@ -12,10 +12,9 @@ on:
 permissions: read-all
 
 concurrency:
-  # Same pattern as ci.yml: group by target branch so rapid pushes/PRs
-  # targeting main cancel older in-progress runs. Schedule runs use ref_name
-  # (the default branch) as the group, which is correct.
-  group: ${{ github.workflow }}-${{ github.event.pull_request.base.ref || github.ref_name }}
+  # Same pattern as ci.yml: one slot per pull request, plus one for the default
+  # branch. Schedule runs use ref_name (the default branch) as the group.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref_name }}
   cancel-in-progress: true
 
 jobs:

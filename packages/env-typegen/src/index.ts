@@ -87,7 +87,7 @@ export { generateT3Env } from "./generators/t3-generator.js";
  * - {@link Expected}      — discriminated union describing the expected value shape
  * - {@link Environment}   — runtime environments a check can target
  * - {@link IssueSeverity} — `"error"` | `"warning"`
- * - {@link ReportStatus}  — `"pass"` | `"fail"` | `"skipped"`
+ * - {@link ReportStatus}  — `"ok"` | `"fail"`
  * - {@link Issue}         — a single validation finding
  * - {@link CiReport}      — the top-level payload written to stdout with `--ci`
  */
@@ -258,3 +258,16 @@ export {
   loadPlugins,
 } from "./plugins.js";
 export type { EnvTypegenPlugin, PluginReference } from "./plugins.js";
+
+/**
+ * Sync apply confirmation token helpers for guarded write-mode execution.
+ */
+export {
+  buildSyncApplyCorrelationId,
+  createApplyConfirmationToken,
+  validateApplyConfirmationToken,
+} from "./sync/apply-confirmation-token.js";
+export type {
+  ApplyConfirmationTokenPayload,
+  ApplyConfirmationTokenValidationResult,
+} from "./sync/apply-confirmation-token.js";

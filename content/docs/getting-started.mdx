@@ -12,14 +12,22 @@ pnpm add -D @xlameiro/env-typegen
 ## 1) Generate your first typed output
 
 ```bash
-env-typegen --input .env.example --output env.generated.ts --format ts
+# Default CLI behavior
+env-typegen
+
+# Equivalent explicit form
+env-typegen --input .env.example --output src/env.ts --format ts
 ```
 
 This command gives you a typed environment contract directly from `.env.example`.
 
+Use `--format` as the preferred generator flag. `--generator` remains available as a
+backward-compatible alias.
+
 ## 2) Generate multiple outputs from one source
 
 ```bash
+# Custom output path example
 env-typegen -i .env.example -o env.generated.ts -f ts -f zod -f t3 -f declaration
 ```
 

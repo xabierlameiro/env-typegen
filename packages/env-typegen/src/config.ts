@@ -30,6 +30,11 @@ export type EnvTypegenWritePolicyConfig = {
   requirePreflight?: boolean;
   /** Optional JSONL audit trail output path. */
   auditLogPath?: string;
+  /**
+   * Directory that records used confirmation tokens so a later process cannot replay one.
+   * Defaults to `.env-typegen/confirmation-nonces` under the working directory.
+   */
+  confirmationNonceStorePath?: string;
   /** Optional execution budget guardrails for apply operations. */
   executionBudget?: ExecutionBudget;
   /** Optional SLO policy used to derive operational readiness during apply orchestration. */
