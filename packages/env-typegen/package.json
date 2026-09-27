@@ -54,7 +54,7 @@
     "CHANGELOG.md"
   ],
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "scripts": {
     "build": "tsup",
@@ -71,7 +71,7 @@
   },
   "dependencies": {
     "picocolors": "^1.1.1",
-    "chokidar": "^4.0.3",
+    "chokidar": "^5.0.0",
     "prettier": "^3.5.3"
   },
   "devDependencies": {
