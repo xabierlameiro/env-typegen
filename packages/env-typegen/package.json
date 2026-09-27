@@ -1,6 +1,6 @@
 {
   "name": "@xlameiro/env-typegen",
-  "version": "0.1.10",
+  "version": "0.2.0",
   "description": "Stop using process.env wrong. Zero-config TypeScript types from .env.example.",
   "keywords": [
     "env",
@@ -22,13 +22,13 @@
     "developer-tools",
     "type-inference"
   ],
-  "homepage": "https://github.com/xlameiro/env-typegen",
+  "homepage": "https://github.com/xabierlameiro/env-typegen",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/xlameiro/env-typegen.git"
+    "url": "git+https://github.com/xabierlameiro/env-typegen.git"
   },
   "bugs": {
-    "url": "https://github.com/xlameiro/env-typegen/issues"
+    "url": "https://github.com/xabierlameiro/env-typegen/issues"
   },
   "license": "MIT",
   "author": "xlameiro",
