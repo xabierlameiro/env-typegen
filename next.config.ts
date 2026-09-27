@@ -86,17 +86,11 @@ const nextConfig: NextConfig = {
   // useMemo/useCallback/memo where beneficial. No manual memoization needed.
   // See: https://nextjs.org/docs/app/api-reference/config/next-config-js/reactCompiler
   reactCompiler: true,
-  experimental: {
-    browserDebugInfoInTerminal: {
-      showSourceLocation: true,
-      depthLimit: 5,
-      edgeLimit: 100,
-    },
-  },
   images: {
     formats: ["image/avif", "image/webp"],
   },
   logging: {
+    browserToTerminal: true,
     fetches: {
       fullUrl: process.env.NODE_ENV !== "production",
     },
