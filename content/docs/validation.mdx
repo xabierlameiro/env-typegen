@@ -20,25 +20,70 @@ Validation commands let you enforce contracts before deployment.
 ## Contract file
 
 By default, env-typegen auto-discovers `env.contract.mjs` or `env.contract.js`.
+Use `defineContract` for IDE autocompletion and compile-time shape validation:
 
 ```typescript
-export default {
-  schemaVersion: 1,
-  variables: {
-    PORT: { expected: { type: "number" }, required: true, clientSide: false },
-    NEXT_PUBLIC_APP_URL: {
-      expected: { type: "url" },
+import { defineContract } from "@xlameiro/env-typegen";
+
+export default defineContract({
+  vars: [
+    {
+      name: "DATABASE_URL",
+      expectedType: "url",
       required: true,
-      clientSide: true,
+      isSecret: true,
+      description: "PostgreSQL connection string",
     },
-    APP_VERSION: {
-      expected: { type: "semver" },
+    {
+      name: "PORT",
+      expectedType: "number",
+      required: false,
+      default: "3000",
+      constraints: { min: 1024, max: 65535 },
+    },
+    {
+      name: "LOG_LEVEL",
+      expectedType: "string",
       required: true,
-      clientSide: false,
+      enumValues: ["debug", "info", "warn", "error"],
     },
-  },
-};
+    {
+      name: "NEXT_PUBLIC_APP_URL",
+      expectedType: "url",
+      required: true,
+      runtime: "client",
+    },
+    {
+      name: "APP_VERSION",
+      expectedType: "semver",
+      required: true,
+    },
+  ],
+});
 ```
+
+### `EnvContractEntry` field reference
+
+| Field             | Type                                 | Required | Description                                                                                                                       |
+| ----------------- | ------------------------------------ | -------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `name`            | `string`                             | ✅       | Variable name                                                                                                                     |
+| `expectedType`    | `EnvVarType`                         | ✅       | Expected semantic type (`"string"` \| `"number"` \| `"boolean"` \| `"url"` \| `"email"` \| `"semver"` \| `"json"` \| `"unknown"`) |
+| `required`        | `boolean`                            | ✅       | Whether the variable must be present                                                                                              |
+| `default`         | `string`                             | —        | Default value string when variable is absent and `required: false`                                                                |
+| `enumValues`      | `string[]`                           | —        | Allowed literal values; reported as `ENV_INVALID_VALUE` when breached                                                             |
+| `constraints.min` | `number`                             | —        | Minimum numeric value (only for `"number"` type)                                                                                  |
+| `constraints.max` | `number`                             | —        | Maximum numeric value (only for `"number"` type)                                                                                  |
+| `runtime`         | `"server"` \| `"client"` \| `"edge"` | —        | Scope restriction applied in generated type guards                                                                                |
+| `isSecret`        | `boolean`                            | —        | Marks variable as sensitive — its value is **never** included in report artifacts                                                 |
+| `description`     | `string`                             | —        | Free-text documentation surfaced in type-generated comments                                                                       |
+
+> **Runtime note**: env-typegen searches for contract files in this order:
+> `env.contract.mjs` → `env.contract.js` → `env.contract.ts`.
+> TypeScript (`.ts`) contract files cannot be loaded by Node.js at runtime without a
+> loader such as `tsx` or `ts-node`. env-typegen stops with an error that names the file
+> and the fix, instead of Node's raw `ERR_UNKNOWN_FILE_EXTENSION`.
+> Rename to `.mjs` and use ESM syntax (`export default defineContract(...)`) for direct
+> Node.js execution.
 
 If no contract file is found, env-typegen can bootstrap from `.env.example`.
 

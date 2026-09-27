@@ -95,6 +95,57 @@ export default {
 - Validate pack behavior with `verify` in CI before rollout.
 - Keep local inline rules minimal and documented.
 
+## Programmatic API
+
+Use these functions to publish, promote, and validate policy packs from code.
+
+```typescript
+import {
+  publishPolicyPack,
+  assertPolicyPackPromotion,
+  canPromotePolicyChannel,
+  isPolicyDistributionChannel,
+  isPolicyDistributionSink,
+} from "@xlameiro/env-typegen";
+```
+
+### Publish a pack to a local sink
+
+```typescript
+const record = await publishPolicyPack({
+  source: "./policy/base-governance.policy.json",
+  content: JSON.stringify(packContent),
+  channel: "stage",
+  target: { sink: "local", destination: "./dist/policy" },
+  promotedFrom: "dev",
+});
+console.log(record.checksum); // SHA-256 of written content
+```
+
+### Validate a promotion path before publishing
+
+```typescript
+// Check programmatically
+const ok = canPromotePolicyChannel({ from: "dev", to: "stage" }); // true
+const blocked = canPromotePolicyChannel({ from: "dev", to: "prod" }); // false
+
+// Assert and throw on invalid path
+assertPolicyPackPromotion({ promotedFrom: "dev", to: "stage" }); // no-op
+assertPolicyPackPromotion({ promotedFrom: "dev", to: "prod" }); // throws
+```
+
+Allowed promotion paths: `dev → stage`, `stage → prod`. Skipping stages throws an error.
+
+### Runtime type guards
+
+```typescript
+isPolicyDistributionChannel("prod"); // true
+isPolicyDistributionChannel("unknown"); // false
+isPolicyDistributionSink("s3"); // true
+```
+
+See [Programmatic API](/docs/api#policy-distribution-api) for the full type reference.
+
 ## Related docs
 
 - [Validation & Governance](/docs/validation)
