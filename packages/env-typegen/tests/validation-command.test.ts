@@ -121,7 +121,31 @@ describe("validation command", () => {
     });
 
     expect(exitCode).toBe(0);
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("Usage: env-typegen check"));
+    const output = logSpy.mock.calls.map(([message]) => String(message)).join("\n");
+    expect(output).toContain("Usage: env-typegen check");
+    expect(output).toContain("status: ok");
+    expect(output).not.toContain("status: ok or warn");
+  });
+
+  it("should document ok/fail exit statuses for diff and doctor help", async () => {
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+
+    const diffExitCode = await runValidationCommand({
+      command: "diff",
+      argv: ["--help"],
+    });
+    const doctorExitCode = await runValidationCommand({
+      command: "doctor",
+      argv: ["--help"],
+    });
+
+    const output = logSpy.mock.calls.map(([message]) => String(message)).join("\n");
+    expect(diffExitCode).toBe(0);
+    expect(doctorExitCode).toBe(0);
+    expect(output).toContain("Usage: env-typegen diff");
+    expect(output).toContain("Usage: env-typegen doctor");
+    expect(output).toContain("status: ok");
+    expect(output).not.toContain("status: ok or warn");
   });
 
   it("should validate cloud snapshots and write JSON output to a file", async () => {

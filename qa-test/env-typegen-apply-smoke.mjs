@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { createHmac, randomUUID } from "node:crypto";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -15,6 +16,10 @@ const cliEntrypoint = path.join(
   repositoryRoot,
   "packages/env-typegen/dist/cli.js",
 );
+const smokeConfirmationSigningKey =
+  process.env.ENV_TYPEGEN_CONFIRMATION_SIGNING_KEY ??
+  "env-typegen-smoke-confirmation-signing-key";
+process.env.ENV_TYPEGEN_CONFIRMATION_SIGNING_KEY = smokeConfirmationSigningKey;
 
 function getModeFromArgs(argv) {
   const modeArg = argv.find((arg) => arg.startsWith("--mode="));
@@ -35,6 +40,10 @@ function runCommand(command, args, cwd) {
     const child = spawn(command, args, {
       cwd,
       stdio: ["ignore", "pipe", "pipe"],
+      env: {
+        ...process.env,
+        ENV_TYPEGEN_CONFIRMATION_SIGNING_KEY: smokeConfirmationSigningKey,
+      },
     });
 
     let stdout = "";
@@ -52,6 +61,36 @@ function runCommand(command, args, cwd) {
       resolve({ code: code ?? 1, stdout, stderr, args });
     });
   });
+}
+
+function buildApplyCorrelationId({ provider, environment, changeSetHash }) {
+  return `${provider}:${environment}:apply:${changeSetHash.slice(0, 16)}`;
+}
+
+function createSmokeConfirmationToken({ provider, environment, changeSetHash }) {
+  const now = new Date();
+  const payload = {
+    version: 1,
+    purpose: "sync-apply",
+    nonce: randomUUID(),
+    issuedAt: now.toISOString(),
+    expiresAt: new Date(now.getTime() + 5 * 60 * 1000).toISOString(),
+    provider,
+    environment,
+    changeSetHash,
+    correlationId: buildApplyCorrelationId({
+      provider,
+      environment,
+      changeSetHash,
+    }),
+  };
+  const encodedPayload = Buffer.from(JSON.stringify(payload), "utf8").toString(
+    "base64url",
+  );
+  const signature = createHmac("sha256", smokeConfirmationSigningKey)
+    .update(`etgac.v1.${encodedPayload}`, "utf8")
+    .digest("hex");
+  return `etgac.v1.${encodedPayload}.${signature}`;
 }
 
 async function main() {
@@ -85,7 +124,7 @@ async function main() {
     );
     await writeFile(
       preflightPath,
-      JSON.stringify({ ok: true }, null, 2),
+      JSON.stringify({ preflightAttestation: { invalid: true } }, null, 2),
       "utf8",
     );
 
@@ -211,6 +250,52 @@ async function main() {
     }
 
     if (mode === "apply" || mode === "all") {
+      const previewResult = await runCommand(
+        "node",
+        [
+          cliEntrypoint,
+          "sync-preview",
+          "smoke",
+          "--config",
+          applyConfigPath,
+          "--env",
+          "production",
+          "--env-file",
+          envPath,
+          "--json",
+        ],
+        repositoryRoot,
+      );
+
+      let confirmationToken = "";
+      if (previewResult.code === 0) {
+        try {
+          const previewPayload = JSON.parse(previewResult.stdout.trim());
+          if (
+            typeof previewPayload.changeSetHash === "string" &&
+            typeof previewPayload.preflightAttestation === "object" &&
+            previewPayload.preflightAttestation !== null
+          ) {
+            await writeFile(
+              preflightPath,
+              JSON.stringify(
+                { preflightAttestation: previewPayload.preflightAttestation },
+                null,
+                2,
+              ),
+              "utf8",
+            );
+            confirmationToken = createSmokeConfirmationToken({
+              provider: "smoke",
+              environment: "production",
+              changeSetHash: previewPayload.changeSetHash,
+            });
+          }
+        } catch {
+          confirmationToken = "";
+        }
+      }
+
       await run(
         "sync-apply apply should fail when writes are disabled",
         [
@@ -241,6 +326,8 @@ async function main() {
           "--apply",
           "--preflight-file",
           preflightPath,
+          "--confirmation-token",
+          confirmationToken,
           "--json",
         ],
         "non-zero",
@@ -262,7 +349,7 @@ async function main() {
           "--preflight-file",
           preflightPath,
           "--confirmation-token",
-          "smoke-confirmation-token",
+          confirmationToken,
           "--protected-branch",
           "--json",
         ],
