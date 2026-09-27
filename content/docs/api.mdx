@@ -146,7 +146,7 @@ type EnvVarType =
   | "unknown";
 ```
 
-`"semver"` matches values like `1.2.3`, `"json"` matches non-null JSON objects or arrays, and `"unknown"` is assigned when no rule matches or the value is empty.
+`"semver"` matches values like `1.2.3`, `"json"` matches non-null JSON objects or arrays, and `"unknown"` is assigned only when the value is empty. A non-empty value that matches no rule falls back to `"string"`.
 
 ### `ParsedEnvFile`
 
@@ -156,11 +156,12 @@ The top-level result returned by `parseEnvFile` and `parseEnvFileContent`:
 type ParsedEnvFile = {
   filePath: string; // Source file path (or label for inline content)
   vars: ParsedEnvVar[]; // Ordered list of parsed variables
-  warnings: ParsedEnvWarning[]; // Non-fatal parse issues (e.g., duplicate keys)
+  groups: string[]; // Unique group names, in order of appearance
+  warnings?: ParsedEnvWarning[]; // Non-fatal parse issues. Omitted when there are none
 };
 ```
 
-Always check `parsed.warnings` after parsing — duplicate keys are reported there and will silently override each other without warning during generation.
+Always check `parsed.warnings` after parsing — duplicate keys are reported there and will silently override each other without warning during generation. The field is `undefined` on a clean parse.
 
 ### `ParsedEnvWarning`
 
@@ -176,7 +177,7 @@ type ParsedEnvWarning = {
 
 // Usage
 const parsed = parseEnvFile(".env.example");
-for (const warning of parsed.warnings) {
+for (const warning of parsed.warnings ?? []) {
   console.warn(`[${warning.code}] ${warning.message} (line ${warning.line})`);
 }
 ```
@@ -189,14 +190,14 @@ A single variable entry produced by the parser. All 14 fields:
 type ParsedEnvVar = {
   key: string; // Variable name (e.g. "DATABASE_URL")
   rawValue: string; // Raw string value before type coercion
-  inferredType: EnvVarType | null; // Type inferred from key+value heuristics; null before inferTypes() runs
+  inferredType: EnvVarType; // Type inferred from key+value heuristics. Always set by the parser
   annotatedType?: EnvVarType; // Type explicitly declared via @type annotation
   description?: string; // Description from @description or first free-form comment line
-  isRequired: boolean; // true when @required annotation is present
-  isOptional?: boolean; // true when @optional annotation is present
-  isClientSide?: boolean; // true for NEXT_PUBLIC_ prefix or @client annotation
-  group?: string; // Logical group from @group annotation
-  lineNumber?: number; // Source line number in the .env file
+  isRequired: boolean; // true when the value is non-empty or @required is present
+  isOptional: boolean; // true when the value is empty and @required is absent
+  isClientSide: boolean; // true when the key starts with NEXT_PUBLIC_
+  group?: string; // Nearest section header above, e.g. "# --- Auth ---" gives "Auth"
+  lineNumber: number; // 1-based line number of the KEY=VALUE line
   enumValues?: string[]; // Allowed literal values from @enum annotation
   constraints?: { min?: number; max?: number }; // Numeric range from @min / @max annotations
   runtime?: "server" | "client" | "edge"; // Runtime scope from @runtime annotation
@@ -233,7 +234,7 @@ type InferenceRule = {
 };
 ```
 
-The exported `inferenceRules` constant contains all 11 built-in rules. Custom rules injected via `inferenceRules` in config are evaluated **before** built-in rules. All rules run in ascending `priority` order — use a priority lower than `2` to guarantee your rule fires first.
+The exported `inferenceRules` constant contains all 11 built-in rules. Custom rules injected via `inferenceRules` in config are evaluated **before** every built-in rule, whatever their `priority`. The `priority` value only orders custom rules among themselves, and built-in rules among themselves, lowest first.
 
 Built-in rule reference:
 
@@ -672,7 +673,7 @@ import {
 ### `ReportStatus`
 
 ```typescript
-type ReportStatus = "pass" | "fail";
+type ReportStatus = "ok" | "fail";
 ```
 
 ### `IssueSeverity`
@@ -699,14 +700,16 @@ type Environment =
 
 All six issue codes that can appear in a `CiReport`:
 
-| Code                   | Severity            | Meaning                                                                               |
-| ---------------------- | ------------------- | ------------------------------------------------------------------------------------- |
-| `MISSING_REQUIRED`     | `error`             | Required variable is absent from the validated source                                 |
-| `TYPE_MISMATCH`        | `error`             | Variable is present but fails type validation                                         |
-| `UNDECLARED`           | `error` / `warning` | Variable is present but not in the contract (error in strict mode, warning otherwise) |
-| `ENV_SECRET_EXPOSED`   | `error`             | A secret variable has a non-empty value in a non-local environment                    |
-| `ENUM_VIOLATION`       | `error`             | Variable value is not in the declared `enumValues` list                               |
-| `CONSTRAINT_VIOLATION` | `error`             | Numeric variable value violates a declared `min` or `max` constraint                  |
+| Code                 | Meaning                                                              |
+| -------------------- | -------------------------------------------------------------------- |
+| `ENV_MISSING`        | Required variable is missing from the env file                       |
+| `ENV_EXTRA`          | Variable is present in the env file but not declared in the contract |
+| `ENV_INVALID_TYPE`   | Value cannot be coerced to the declared type                         |
+| `ENV_INVALID_VALUE`  | Value fails a constraint check (enum, min, max)                      |
+| `ENV_CONFLICT`       | Variable has inconsistent values across environments                 |
+| `ENV_SECRET_EXPOSED` | Secret variable has a non-empty value in a public env file           |
+
+Each issue carries its own `severity`. Read it from the issue instead of deriving it from the code.
 
 ### `Expected`
 
@@ -732,12 +735,12 @@ Narrow on `expected.type` when consuming issues programmatically — only `"enum
 ```typescript
 type Issue = {
   code: IssueCode;
-  type: IssueSeverity;
+  type: string; // Human-readable description of the issue category, one per code
   key: string; // Variable name that triggered the issue
   expected: Expected; // What the contract requires
-  received?: string; // Actual type string inferred from the source
+  received?: string; // Raw received value when applicable and not a secret
   environment: Environment; // Which environment context the issue originates from
-  severity: IssueSeverity; // Duplicate of type — kept for consumers that key on severity
+  severity: IssueSeverity; // "error" blocks deployment, "warning" is advisory
   value: null; // Always null — secrets must never appear in report artifacts
 };
 ```

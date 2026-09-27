@@ -258,8 +258,8 @@ export default defineConfig({
 
 ## Configuration type reference
 
-The sub-types that compose `EnvTypegenConfig`. The package entry point exports only
-`EnvTypegenConfig`. Reach a sub-type through an indexed access:
+The sub-types that compose `EnvTypegenConfig`. The package entry point exports
+`EnvTypegenConfig` and `GeneratorName`. Reach any other sub-type through an indexed access:
 
 ```typescript
 import type { EnvTypegenConfig } from "@xlameiro/env-typegen";
@@ -286,9 +286,9 @@ Shape of each entry in the `environments` map:
 
 ```typescript
 type EnvTypegenEnvironmentConfig = {
-  source: string; // Provider key or "local"
+  source: string | string[]; // Provider key, "local", or a chain of sources
   targets?: string[]; // Provider-specific target alias(es)
-  metadata?: Record<string, string>; // Arbitrary key/value metadata per environment
+  metadata?: Record<string, unknown>; // Provider-specific extension point
 };
 ```
 
@@ -320,8 +320,8 @@ Controls lockfile integrity for installed policy packs:
 
 ```typescript
 type EnvTypegenPolicyPackLockConfig = {
-  path?: string; // Override lockfile path (default: env-typegen.lock.json)
-  strict?: boolean; // Fail when an installed pack's checksum does not match the lockfile
+  path?: string; // Path to the lock file used by policy pack resolution
+  strict?: boolean; // Fail when a referenced pack has no lock entry (default: true)
 };
 ```
 
@@ -346,10 +346,13 @@ Controls signature trust validation for policy packs:
 
 ```typescript
 type EnvTypegenPolicyPackTrustConfig = {
-  mode?: "strict" | "permissive"; // Enforcement mode (default: "permissive")
+  mode?: "strict" | "tolerant"; // strict blocks missing or invalid signatures, tolerant allows unsigned packs
   allowedSigners?: string[]; // Allowed signer identifiers
   enforceExpiry?: boolean; // Reject packs with expired signatures
-  externalTrustRoot?: string; // Path to an external trust root certificate
+  externalTrustRoot?: {
+    provider: "aws-kms" | "gcp-kms" | "hashicorp-vault" | "external";
+    keyringPath?: string; // Keyring document used as the trust root source
+  };
 };
 ```
 
@@ -360,7 +363,7 @@ Controls policy distribution channel and sink for governance rollout:
 ```typescript
 type EnvTypegenPolicyDistributionConfig = {
   channel?: PolicyDistributionChannel; // "dev" | "stage" | "prod"
-  sink?: PolicyDistributionSink; // "local" | "s3" | "git"
+  sink?: PolicyDistributionSink; // "local" | "s3" | "github-packages"
   destination?: string; // Sink-specific target path or URL
 };
 ```
@@ -373,9 +376,9 @@ Default values used during multi-repo bootstrap orchestration:
 
 ```typescript
 type EnvTypegenTemplatesConfig = {
-  defaultTemplate?: string; // Default template name for fleet bootstrap
-  defaultEnforcementLevel?: string; // Default enforcement level for new repos
-  defaultPolicyChannel?: string; // Default policy channel for new repos
+  defaultTemplate?: "web-app" | "library"; // Used when a fleet manifest entry omits `template`
+  defaultEnforcementLevel?: "advisory" | "standard" | "strict";
+  defaultPolicyChannel?: "dev" | "stage" | "prod";
 };
 ```
 

@@ -119,20 +119,21 @@ env-typegen -i .env.example -o env.generated.ts -f ts -f zod -f t3 -f declaratio
 `--format` CLI flag.
 
 It produces a `validateEnv()` function that throws at startup when a required environment
-variable is absent, derived from `@required` annotations in the source file.
+variable is absent. A variable is required when it has a non-empty value in the source file
+or carries a `@required` annotation.
 
 ```typescript
 import { parseEnvFile, generateEnvValidation } from "@xlameiro/env-typegen";
 
 const parsed = parseEnvFile(".env.example");
 const code = generateEnvValidation(parsed);
-// Emits a validateEnv() function that checks all @required vars at process startup
+// Emits a validateEnv() function that checks all required vars at process startup
 ```
 
 Pair with `generateTypeScriptTypes` for both compile-time types and a runtime startup guard
 from the same source file.
 
-See [Programmatic API](/docs/api#generateEnvValidation-parsed) for the full function reference.
+See [Programmatic API](/docs/api#generateenvvalidationparsed) for the full function reference.
 
 ## FAQ
 

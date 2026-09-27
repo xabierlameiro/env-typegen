@@ -70,7 +70,7 @@ export default defineContract({
 | `expectedType`    | `EnvVarType`                         | ✅       | Expected semantic type (`"string"` \| `"number"` \| `"boolean"` \| `"url"` \| `"email"` \| `"semver"` \| `"json"` \| `"unknown"`) |
 | `required`        | `boolean`                            | ✅       | Whether the variable must be present                                                                                              |
 | `default`         | `string`                             | —        | Default value string when variable is absent and `required: false`                                                                |
-| `enumValues`      | `string[]`                           | —        | Allowed literal values; validated as `ENUM_VIOLATION` when breached                                                               |
+| `enumValues`      | `string[]`                           | —        | Allowed literal values; reported as `ENV_INVALID_VALUE` when breached                                                             |
 | `constraints.min` | `number`                             | —        | Minimum numeric value (only for `"number"` type)                                                                                  |
 | `constraints.max` | `number`                             | —        | Maximum numeric value (only for `"number"` type)                                                                                  |
 | `runtime`         | `"server"` \| `"client"` \| `"edge"` | —        | Scope restriction applied in generated type guards                                                                                |
@@ -80,7 +80,8 @@ export default defineContract({
 > **Runtime note**: env-typegen searches for contract files in this order:
 > `env.contract.mjs` → `env.contract.js` → `env.contract.ts`.
 > TypeScript (`.ts`) contract files cannot be loaded by Node.js at runtime without a
-> loader such as `tsx` or `ts-node` — the loader will throw `ERR_UNKNOWN_FILE_EXTENSION`.
+> loader such as `tsx` or `ts-node`. env-typegen stops with an error that names the file
+> and the fix, instead of Node's raw `ERR_UNKNOWN_FILE_EXTENSION`.
 > Rename to `.mjs` and use ESM syntax (`export default defineContract(...)`) for direct
 > Node.js execution.
 
