@@ -203,9 +203,20 @@ describe("runCli", () => {
     const output = spy.mock.calls.map((c) => String(c[0])).join("\n");
     expect(output).toContain("env-typegen");
     expect(output).toContain("--input");
-    expect(output).toContain("--generator");
     expect(output).toContain("--format");
+    expect(output).toContain("--generator");
+    expect(output).toContain("--no-format");
     expect(output).toContain("--watch");
+    expect(output).toContain("--mode");
+    expect(output).toContain("Subcommands:");
+    expect(output).toContain("check");
+    expect(output).toContain("diff");
+    expect(output).toContain("doctor");
+    expect(output).toContain("verify");
+    expect(output).toContain("pull");
+    expect(output).toContain("plan");
+    expect(output).toContain("sync-preview");
+    expect(output).toContain("sync-apply");
   });
 
   it("should print help text when -h is passed", async () => {
@@ -218,13 +229,15 @@ describe("runCli", () => {
     expect(output).toContain("--input");
   });
 
-  it("should call process.exit(1) and print an error when --input is missing", async () => {
+  it("should call process.exit(1) when no env file is found in the fallback chain", async () => {
+    // dir is a fresh empty temp dir — no .env.example, .env.example.local, or .env
     vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(console, "log").mockImplementation(() => {});
     const exitSpy = vi.spyOn(process, "exit").mockImplementation((_code) => {
       throw new Error(`process.exit(${String(_code)})`);
     });
 
-    await expect(runCli([])).rejects.toThrow("process.exit(1)");
+    await expect(runCli([], dir)).rejects.toThrow("process.exit(1)");
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 
@@ -273,20 +286,17 @@ describe("runCli", () => {
     expect(content).toContain("z.string");
   });
 
-  it("should default to all four generators when no --generator is specified", async () => {
+  it("should default to the typescript generator when no --format is specified", async () => {
     const inputPath = path.join(dir, ".env.example");
     await writeFile(inputPath, "DB_HOST=localhost\n");
     const outputPath = path.join(dir, "out.ts");
 
     await runCli(["--input", inputPath, "--output", outputPath]);
 
-    // With multiple generators, each produces a suffixed file
-    const tsContent = await readFile(path.join(dir, "out.typescript.ts"), "utf8");
-    expect(tsContent).toContain("ProcessEnv");
+    // Single generator (typescript): output uses the provided path directly, no suffix
+    const tsContent = await readFile(outputPath, "utf8");
     expect(tsContent).toContain("DB_HOST");
-
-    const zodContent = await readFile(path.join(dir, "out.zod.ts"), "utf8");
-    expect(zodContent).toContain("z.");
+    expect(tsContent).toContain("ProcessEnv");
   });
 
   it("should support --stdout without writing files", async () => {
@@ -367,32 +377,31 @@ describe("runCli", () => {
     expect(logs).not.toContain("Generated");
   });
 
-  it("should document the multi-generator output suffix convention in --help", async () => {
+  it("should document available output formats in --help", async () => {
     const spy = vi.spyOn(console, "log").mockImplementation(() => {});
 
     await runCli(["--help"]);
 
     const output = spy.mock.calls.map((c) => String(c[0])).join("\n");
-    expect(output).toContain("typescript.ts");
+    expect(output).toContain("ts|zod|t3|declaration");
   });
 
-  it("should document config file auto-discovery order in --help", async () => {
+  it("should document zero-arg usage in --help", async () => {
     const spy = vi.spyOn(console, "log").mockImplementation(() => {});
 
     await runCli(["--help"]);
 
     const output = spy.mock.calls.map((c) => String(c[0])).join("\n");
-    expect(output).toContain("Config file:");
-    expect(output).toContain("env-typegen.config.mjs");
+    expect(output).toContain("Auto-detect");
   });
 
-  it("should document exit codes in generate --help", async () => {
+  it("should document the viral tagline in --help", async () => {
     const spy = vi.spyOn(console, "log").mockImplementation(() => {});
 
     await runCli(["--help"]);
 
     const output = spy.mock.calls.map((c) => String(c[0])).join("\n");
-    expect(output).toContain("Exit codes:");
+    expect(output).toContain("Stop using process.env wrong");
   });
 
   it("should document exit codes in check --help", async () => {
@@ -447,6 +456,212 @@ describe("runCli", () => {
     const content = await readFile(outputPath, "utf8");
     expect(content).toContain("z.string");
     expect(content).toContain("API_KEY");
+  });
+
+  // ---------------------------------------------------------------------------
+  // Zero-arg auto-detection (Phase 1 viral feature)
+  // ---------------------------------------------------------------------------
+
+  it("should auto-detect .env.example and write src/env.ts when no --input is given", async () => {
+    await writeFile(path.join(dir, ".env.example"), "DATABASE_URL=postgres://localhost/myapp\n");
+    vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await runCli([], dir);
+
+    const output = await readFile(path.join(dir, "src", "env.ts"), "utf8");
+    expect(output).toContain("DATABASE_URL");
+    expect(output).toContain("ProcessEnv");
+  });
+
+  it("should auto-detect .env.example.local as second fallback when .env.example is absent", async () => {
+    await writeFile(path.join(dir, ".env.example.local"), "REDIS_URL=redis://localhost\n");
+    vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await runCli([], dir);
+
+    const output = await readFile(path.join(dir, "src", "env.ts"), "utf8");
+    expect(output).toContain("REDIS_URL");
+  });
+
+  it("should auto-detect .env as last resort when neither .env.example variant exists", async () => {
+    await writeFile(path.join(dir, ".env"), "STRIPE_KEY=sk_test_placeholder\n");
+    vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await runCli([], dir);
+
+    const output = await readFile(path.join(dir, "src", "env.ts"), "utf8");
+    expect(output).toContain("STRIPE_KEY");
+  });
+
+  it("should print a Found message including variable count for zero-arg invocation", async () => {
+    await writeFile(
+      path.join(dir, ".env.example"),
+      "DATABASE_URL=postgres://localhost\nNEXTAUTH_SECRET=changeme\n",
+    );
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await runCli([], dir);
+
+    const output = logSpy.mock.calls.map((c) => String(c[0])).join("\n");
+    expect(output).toContain("2 variables");
+  });
+
+  it("should print before/after import hint for zero-arg invocation", async () => {
+    await writeFile(path.join(dir, ".env.example"), "API_KEY=placeholder\n");
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await runCli([], dir);
+
+    const output = logSpy.mock.calls.map((c) => String(c[0])).join("\n");
+    expect(output).toContain("process.env.API_KEY");
+    expect(output).toContain("env.API_KEY");
+    expect(output).toContain("import { env }");
+  });
+
+  // ---------------------------------------------------------------------------
+  // --mode augment (Phase 1 viral feature)
+  // ---------------------------------------------------------------------------
+
+  it("should write env.d.ts augmentation when --mode augment is given", async () => {
+    const inputPath = path.join(dir, ".env.example");
+    await writeFile(inputPath, "API_SECRET=placeholder\n");
+    vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await runCli([
+      "--input",
+      inputPath,
+      "--mode",
+      "augment",
+      "--output",
+      path.join(dir, "env.d.ts"),
+    ]);
+
+    const output = await readFile(path.join(dir, "env.d.ts"), "utf8");
+    expect(output).toContain("API_SECRET");
+    expect(output).toContain("ProcessEnv");
+    expect(output).toContain("declare namespace NodeJS");
+  });
+
+  it("should default augment output to env.d.ts in cwd when no --output is given", async () => {
+    await writeFile(path.join(dir, ".env.example"), "SESSION_SECRET=placeholder\n");
+    vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await runCli(["--mode", "augment"], dir);
+
+    const output = await readFile(path.join(dir, "env.d.ts"), "utf8");
+    expect(output).toContain("SESSION_SECRET");
+    expect(output).toContain("declare namespace NodeJS");
+  });
+
+  it("should exit with 1 and print actionable guidance when no env file is found in fallback chain", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation((_code) => {
+      throw new Error(`process.exit(${String(_code)})`);
+    });
+
+    // dir is empty — no .env.example, .env.example.local, or .env
+    await expect(runCli([], dir)).rejects.toThrow("process.exit(1)");
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  it("should reject an unknown --mode value with exit 1", async () => {
+    const inputPath = path.join(dir, ".env.example");
+    await writeFile(inputPath, "KEY=value\n");
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation((_code) => {
+      throw new Error(`process.exit(${String(_code)})`);
+    });
+
+    await expect(
+      runCli(["--input", inputPath, "--output", path.join(dir, "out.ts"), "--mode", "invalid"]),
+    ).rejects.toThrow("process.exit(1)");
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// --check flag (Phase 2 viral feature)
+// ---------------------------------------------------------------------------
+
+describe("runCli — --check flag", () => {
+  let dir: string;
+
+  beforeEach(async () => {
+    dir = await mkdtemp(path.join(tmpdir(), "env-typegen-check-"));
+    process.exitCode = undefined;
+  });
+
+  afterEach(() => {
+    process.exitCode = undefined;
+    vi.restoreAllMocks();
+  });
+
+  it("should exit 0 when --check is passed and src/env.ts is in sync", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const inputPath = path.join(dir, ".env.example");
+    await writeFile(inputPath, "DB_URL=placeholder\n");
+    const outputPath = path.join(dir, "src", "env.ts");
+
+    // Generate once so the file exists and is in sync
+    await runCli(["--input", inputPath, "--output", outputPath]);
+
+    // Reset mocks so we only observe --check output
+    vi.restoreAllMocks();
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation((_code) => {
+      throw new Error(`process.exit(${String(_code)})`);
+    });
+
+    await runCli(["--input", inputPath, "--output", outputPath, "--check"]);
+
+    expect(exitSpy).not.toHaveBeenCalled();
+  });
+
+  it("should exit 1 when --check is passed and src/env.ts is out of sync", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const inputPath = path.join(dir, ".env.example");
+    await writeFile(inputPath, "DB_URL=placeholder\n");
+    const outputPath = path.join(dir, "src", "env.ts");
+
+    // Generate with old content
+    await runCli(["--input", inputPath, "--output", outputPath]);
+    // Now add a new variable — env.ts is now out of sync
+    await writeFile(inputPath, "DB_URL=placeholder\nNEW_VAR=something\n");
+
+    vi.restoreAllMocks();
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation((_code) => {
+      throw new Error(`process.exit(${String(_code)})`);
+    });
+
+    await expect(runCli(["--input", inputPath, "--output", outputPath, "--check"])).rejects.toThrow(
+      "process.exit(1)",
+    );
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  it("should exit 1 when --check is passed and src/env.ts does not exist yet", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation((_code) => {
+      throw new Error(`process.exit(${String(_code)})`);
+    });
+
+    const inputPath = path.join(dir, ".env.example");
+    await writeFile(inputPath, "DB_URL=placeholder\n");
+    // No env.ts written — it doesn't exist yet
+
+    await expect(
+      runCli(["--input", inputPath, "--output", path.join(dir, "src", "env.ts"), "--check"]),
+    ).rejects.toThrow("process.exit(1)");
+    expect(exitSpy).toHaveBeenCalledWith(1);
   });
 });
 

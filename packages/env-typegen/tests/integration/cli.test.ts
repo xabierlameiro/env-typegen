@@ -163,21 +163,19 @@ describe("cli integration", () => {
     expect(content).toContain("DATABASE_URL");
   });
 
-  it("should generate all four output files when no --generator flag is given", async () => {
+  it("should default to typescript generator and write a single file when no --format flag is given", async () => {
     dir = await mkdtemp(path.join(tmpdir(), "env-typegen-int-test-"));
     const inputPath = path.join(dir, ".env.example");
-    const outputBase = path.join(dir, "env.ts");
+    const outputPath = path.join(dir, "env.ts");
 
     await writeFile(inputPath, "API_KEY=secret\n", "utf8");
 
-    runBuiltCli(["--input", inputPath, "--output", outputBase], PACKAGE_ROOT);
+    runBuiltCli(["--input", inputPath, "--output", outputPath], PACKAGE_ROOT);
 
-    // With 4 generators, names are suffixed: env.typescript.ts, env.zod.ts, etc.
-    const stem = path.join(dir, "env");
-    expect(await exists(`${stem}.typescript.ts`)).toBe(true);
-    expect(await exists(`${stem}.zod.ts`)).toBe(true);
-    expect(await exists(`${stem}.t3.ts`)).toBe(true);
-    expect(await exists(`${stem}.declaration.d.ts`)).toBe(true);
+    // Single generator (typescript): output uses the provided path directly, no suffix
+    const content = await readFile(outputPath, "utf8");
+    expect(content).toContain("API_KEY");
+    expect(content).toContain("ProcessEnv");
   });
 
   it("should not write any files in --dry-run mode", async () => {
