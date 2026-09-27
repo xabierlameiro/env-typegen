@@ -1,9 +1,0 @@
-{
-  "envs": [
-    { "key": "SERVICE_URL", "value": "https://api.example.com" },
-    { "key": "PORT", "value": "3000" },
-    { "key": "ENABLE_ANALYTICS", "value": "true" },
-    { "key": "NODE_ENV", "value": "development" },
-    { "key": "SECRET_TOKEN", "value": "from-vercel" }
-  ]
-}

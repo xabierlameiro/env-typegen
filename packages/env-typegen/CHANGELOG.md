@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.1.10
+
+### Patch Changes
+
+- 52e5149: New docs
+- 9cc3d1f: ## Fuzzy Dancers Find — env-typegen QA deficiency fixes (D1-D12)
+
+### Added since 0.1.9
+
+- New commands: `pull`, `plan`, `sync-preview`, `sync-apply` and `verify`.
+- Provider adapters for Vercel, AWS SSM, AWS Secrets Manager and Docker.
+- `sync-apply` options `--strategy` (`fail-fast` or `fail-late`) and `--max-concurrency`.
+- Governance modules: policy packs, audit events, trust and evidence reporting.
+
+The `generate`, `check`, `diff` and `doctor` commands keep their flags and defaults.
+
 ## 0.1.9
 
 ### Patch Changes
