@@ -104,6 +104,11 @@ function outputHuman(result: ValidationResult): void {
  * Loads the contract, parses the env file, runs validation, and outputs results.
  * Returns `"ok"` when there are no errors, `"fail"` when there are.
  *
+ * @throws {Error} When an explicit contract path does not exist.
+ * @throws {Error} When an explicit contract module has no default export.
+ * @throws {Error} When no contract file can be auto-discovered.
+ * @throws {Error} When importing the explicit contract module fails.
+ *
  * @public
  */
 export async function runCheck(opts: RunCheckOptions): Promise<ReportStatus> {

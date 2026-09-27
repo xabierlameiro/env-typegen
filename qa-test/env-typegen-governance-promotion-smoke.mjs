@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { createHmac, randomUUID } from "node:crypto";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -11,12 +12,24 @@ const reportFilePath = path.join(
   reportsDirectory,
   "env-governance-promotion-smoke.json",
 );
+const smokeConfirmationSigningKey =
+  process.env.ENV_TYPEGEN_CONFIRMATION_SIGNING_KEY ??
+  "env-typegen-smoke-confirmation-signing-key";
+process.env.ENV_TYPEGEN_CONFIRMATION_SIGNING_KEY = smokeConfirmationSigningKey;
+const smokeEvidenceSigningKey =
+  process.env.ENV_TYPEGEN_EVIDENCE_SIGNING_KEY ??
+  "env-typegen-smoke-evidence-signing-key";
 
 function runCommand(command, args, cwd) {
   return new Promise((resolve) => {
     const child = spawn(command, args, {
       cwd,
       stdio: ["ignore", "pipe", "pipe"],
+      env: {
+        ...process.env,
+        ENV_TYPEGEN_CONFIRMATION_SIGNING_KEY: smokeConfirmationSigningKey,
+        ENV_TYPEGEN_EVIDENCE_SIGNING_KEY: smokeEvidenceSigningKey,
+      },
     });
 
     let stdout = "";
@@ -74,6 +87,36 @@ function toStepResult(params) {
 
 function isSha256(value) {
   return typeof value === "string" && /^[a-f0-9]{64}$/u.test(value);
+}
+
+function buildApplyCorrelationId({ provider, environment, changeSetHash }) {
+  return `${provider}:${environment}:apply:${changeSetHash.slice(0, 16)}`;
+}
+
+function createSmokeConfirmationToken({ provider, environment, changeSetHash }) {
+  const now = new Date();
+  const payload = {
+    version: 1,
+    purpose: "sync-apply",
+    nonce: randomUUID(),
+    issuedAt: now.toISOString(),
+    expiresAt: new Date(now.getTime() + 5 * 60 * 1000).toISOString(),
+    provider,
+    environment,
+    changeSetHash,
+    correlationId: buildApplyCorrelationId({
+      provider,
+      environment,
+      changeSetHash,
+    }),
+  };
+  const encodedPayload = Buffer.from(JSON.stringify(payload), "utf8").toString(
+    "base64url",
+  );
+  const signature = createHmac("sha256", smokeConfirmationSigningKey)
+    .update(`etgac.v1.${encodedPayload}`, "utf8")
+    .digest("hex");
+  return `etgac.v1.${encodedPayload}.${signature}`;
 }
 
 async function runEvidenceProbe() {
@@ -271,6 +314,21 @@ async function runCohortRolloutProbe() {
       ],
       repositoryRoot,
     );
+    let confirmationToken = "";
+    if (preview.exitCode === 0) {
+      try {
+        const previewPayload = JSON.parse(preview.stdout.trim());
+        if (typeof previewPayload.changeSetHash === "string") {
+          confirmationToken = createSmokeConfirmationToken({
+            provider: "smoke",
+            environment: "development",
+            changeSetHash: previewPayload.changeSetHash,
+          });
+        }
+      } catch {
+        confirmationToken = "";
+      }
+    }
     const apply = await runCommand(
       "node",
       [
@@ -283,7 +341,7 @@ async function runCohortRolloutProbe() {
         envPath,
         "--apply",
         "--confirmation-token",
-        "cohort-smoke-token",
+        confirmationToken,
         "--json",
       ],
       repositoryRoot,

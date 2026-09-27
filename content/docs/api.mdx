@@ -498,11 +498,16 @@ env-typegen sync-apply vercel \
   --config env-typegen.config.mjs \
   --apply \
   --preflight-file reports/preflight.json \
+  --confirmation-token "$SYNC_APPLY_CONFIRMATION_TOKEN" \
   --protected-branch \
   --json
 ```
 
-Apply mode exits non-zero when any write guard blocks execution.
+Apply mode exits non-zero when any write guard blocks execution. Token validation
+requires `ENV_TYPEGEN_CONFIRMATION_SIGNING_KEY` in every environment, and apply mode also
+requires `ENV_TYPEGEN_EVIDENCE_SIGNING_KEY`. Create the token with
+`env-typegen confirmation-token`, see
+[Sync Apply](/docs/sync-apply#creating-a-confirmation-token).
 
 ### Policy pack resolution integration
 
@@ -585,6 +590,79 @@ Recommended automation sequence:
 2. Run apply dry-run checks.
 3. Run conformance smoke to validate adapter/orchestration invariants.
 4. Run promotion smoke to validate advisory-enforce -> enforce -> apply progression.
+
+## Confirmation token API
+
+Use these when generating or validating the signed one-time token required by `sync-apply --apply`.
+From the command line, `env-typegen confirmation-token` creates the same token, see
+[Sync Apply](/docs/sync-apply#creating-a-confirmation-token).
+
+```typescript
+import {
+  createApplyConfirmationToken,
+  validateApplyConfirmationToken,
+  buildSyncApplyCorrelationId,
+  type ApplyConfirmationTokenPayload,
+  type ApplyConfirmationTokenValidationResult,
+} from "@xlameiro/env-typegen";
+```
+
+### `buildSyncApplyCorrelationId(params)`
+
+Builds a deterministic correlation ID string for an apply operation. Used as input to `createApplyConfirmationToken`.
+
+```typescript
+const correlationId = buildSyncApplyCorrelationId({
+  provider: "awsSsm",
+  environment: "production",
+  mode: "apply",
+  changeSetHash: "abc123...",
+});
+// → "awsSsm:production:apply:abc123"
+```
+
+### `createApplyConfirmationToken(params)`
+
+Creates a HMAC-SHA256-signed one-time token. Pass the result as `--confirmation-token` to `sync-apply --apply`.
+
+```typescript
+const token = createApplyConfirmationToken({
+  provider: "awsSsm",
+  environment: "production",
+  changeSetHash: preflight.changeSetHash,
+  correlationId,
+  ttlSeconds: 300, // optional, default 300 (max 900)
+});
+// token is a string: etgac.v1.<base64url-payload>.<hmac-sha256-signature>
+```
+
+The signing key comes from the `secret` parameter or from
+`ENV_TYPEGEN_CONFIRMATION_SIGNING_KEY`. It must be at least 32 characters long. The function
+throws when no key is available.
+
+### `validateApplyConfirmationToken(params)`
+
+Validates a token before executing apply logic. Returns an `ApplyConfirmationTokenValidationResult`
+indicating `isValid`, a `reasons` array, and the decoded `payload`. It needs the same signing
+key that created the token.
+
+This function checks the signature, the payload shape, the expiry and the context. It does not
+record used tokens. `sync-apply` does that on disk, see [Sync Apply](/docs/sync-apply#one-time-use).
+
+```typescript
+const result = validateApplyConfirmationToken({
+  token: rawToken,
+  provider: "awsSsm",
+  environment: "production",
+  changeSetHash: currentChangeSetHash,
+  expectedCorrelationId: correlationId,
+});
+
+if (!result.isValid) {
+  console.error("Token rejected:", result.reasons);
+  process.exit(1);
+}
+```
 
 ## Policy distribution API
 

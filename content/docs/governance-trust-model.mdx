@@ -35,8 +35,13 @@ and policy-compliant artifacts.
 Treat trust checks as mandatory for PR and protected-branch governance stages.
 If feature branches need onboarding flexibility, keep diagnostics visible but preserve
 strict enforcement for promotion/apply workflows.
-In production runtimes, require `ENV_TYPEGEN_EVIDENCE_SIGNING_KEY` so evidence
-signatures do not rely on deterministic local fallback keys.
+Set `ENV_TYPEGEN_EVIDENCE_SIGNING_KEY` wherever evidence is produced or verified. No key
+is generated for you:
+
+- `sync-apply --apply` is blocked without the key, before any write.
+- Production runtimes fail without the key.
+- Elsewhere, evidence produced without the key is marked `algorithm: "none"` and
+  `keyId: "unsigned"`. Unsigned evidence never verifies.
 
 ## Related docs
 

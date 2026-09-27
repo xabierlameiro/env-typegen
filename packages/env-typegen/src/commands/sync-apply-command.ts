@@ -4,7 +4,6 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 
-import { loadAdapter } from "../adapters/loader.js";
 import type { EnvMap } from "../adapters/types.js";
 import type { AuditEvent } from "../audit/audit-event.js";
 import { writeAuditEvents } from "../audit/audit-writer.js";
@@ -19,6 +18,7 @@ import {
 import { evaluatePolicy } from "../policy/policy-evaluator.js";
 import { formatAuditEvent } from "../reporting/audit-report.js";
 import { buildEvidenceBundle, type EvidenceBundle } from "../reporting/evidence-bundle.js";
+import { hasEvidenceSigningKey } from "../reporting/evidence-signature.js";
 import { buildGovernanceSummary } from "../reporting/governance-summary.js";
 import {
   runApplyEngineV2,
@@ -26,11 +26,23 @@ import {
   type ApplyOperationResultV2,
 } from "../sync/apply-engine-v2.js";
 import type { ApplyMode } from "../sync/apply-engine.js";
-import { buildChangeSetFromMaps, calculateChangeSetHash } from "../sync/change-set.js";
+import {
+  buildSyncApplyCorrelationId,
+  validateApplyConfirmationToken,
+  type ApplyConfirmationTokenValidationResult,
+} from "../sync/apply-confirmation-token.js";
+import type { buildChangeSetFromMaps } from "../sync/change-set.js";
+import {
+  claimConfirmationNonce,
+  DEFAULT_CONFIRMATION_NONCE_STORE_PATH,
+} from "../sync/confirmation-nonce-store.js";
 import { validatePreflightProof } from "../sync/preflight-proof.js";
-import { evaluateWriteGuards } from "../sync/write-guards.js";
+import {
+  resolveSyncApplyChangeSet,
+  type SyncApplyChangeSetResolution,
+} from "../sync/sync-apply-change-set.js";
+import { evaluateWriteGuards, type WriteGuardResult } from "../sync/write-guards.js";
 import { validatePreflightAttestation } from "../trust/preflight-attestation.js";
-import { loadEnvSource } from "../validation/env-source.js";
 import type { ValidationReport } from "../validation/types.js";
 
 type SyncApplyArgValues = {
@@ -63,7 +75,7 @@ const SYNC_APPLY_HELP_TEXT = [
   "  --env-file <path>         Local env file to sync (default: .env)",
   "  --apply                   Enable write mode (default: dry-run)",
   "  --preflight-file <path>   Required plan artifact for apply mode when configured",
-  "  --confirmation-token <v>  One-time confirmation token for apply mode",
+  "  --confirmation-token <v>  Signed one-time confirmation token for apply mode",
   "  --override                Enable manual emergency override flow",
   "  --reason <text>           Required when --override is set",
   "  --strategy <mode>         fail-fast | fail-late (default: fail-fast)",
@@ -86,7 +98,7 @@ function resolveProviderName(values: SyncApplyArgValues, positionals: string[]):
   return providerName;
 }
 
-async function loadSyncApplyConfig(
+export async function loadSyncApplyConfig(
   configPath: string | undefined,
 ): Promise<EnvTypegenConfig | undefined> {
   if (configPath === undefined) {
@@ -317,16 +329,6 @@ function buildAuditEvent(params: {
   };
 }
 
-function buildCorrelationId(params: {
-  providerName: string;
-  environment: string;
-  mode: ApplyMode;
-  changeSetHash: string;
-}): string {
-  const fingerprint = params.changeSetHash.slice(0, 16);
-  return `${params.providerName}:${params.environment}:${params.mode}:${fingerprint}`;
-}
-
 async function resolvePreflightValidation(params: {
   mode: ApplyMode;
   requiresPreflight: boolean;
@@ -368,6 +370,77 @@ async function resolvePreflightValidation(params: {
     environment: params.environment,
     changeSetHash: params.changeSetHash,
   });
+}
+
+function resolveConfirmationTokenValidation(params: {
+  mode: ApplyMode;
+  values: SyncApplyArgValues;
+  providerName: string;
+  environment: string;
+  changeSetHash: string;
+  correlationId: string;
+}): ApplyConfirmationTokenValidationResult {
+  if (params.mode === "dry-run") {
+    return {
+      isValid: true,
+      reasons: [],
+    };
+  }
+
+  return validateApplyConfirmationToken({
+    token: params.values["confirmation-token"],
+    provider: params.providerName,
+    environment: params.environment,
+    changeSetHash: params.changeSetHash,
+    expectedCorrelationId: params.correlationId,
+  });
+}
+
+// The evidence bundle is built after the writes. Without a key it would be unsigned, so
+// the key is checked here, before anything is written.
+function resolveEvidenceSigningValidation(mode: ApplyMode): {
+  isValid: boolean;
+  reasons: string[];
+} {
+  if (mode === "dry-run" || hasEvidenceSigningKey()) {
+    return { isValid: true, reasons: [] };
+  }
+
+  return {
+    isValid: false,
+    reasons: [
+      "ENV_TYPEGEN_EVIDENCE_SIGNING_KEY is required for apply mode. Without it the evidence of a write cannot be verified later.",
+    ],
+  };
+}
+
+// The token is spent only when every guard allows the apply, right before any write.
+// A run blocked by another guard leaves the token usable for the corrected retry.
+// Dry-run carries no token payload, so there is nothing to spend.
+async function spendConfirmationToken(params: {
+  guardResult: WriteGuardResult;
+  confirmationTokenValidation: ApplyConfirmationTokenValidationResult;
+  nonceStorePath: string;
+}): Promise<WriteGuardResult> {
+  const tokenPayload = params.confirmationTokenValidation.payload;
+  if (!params.guardResult.allowed || tokenPayload === undefined) {
+    return params.guardResult;
+  }
+
+  const nonceClaim = await claimConfirmationNonce({
+    storePath: params.nonceStorePath,
+    nonce: tokenPayload.nonce,
+    expiresAt: tokenPayload.expiresAt,
+  });
+  if (nonceClaim.isClaimed) {
+    return params.guardResult;
+  }
+
+  return {
+    allowed: false,
+    reasons: [nonceClaim.reason],
+    requiredChecks: params.guardResult.requiredChecks,
+  };
 }
 
 function buildInitialLifecycleEvents(params: {
@@ -570,32 +643,24 @@ async function executeSyncApplyUnsafe(
   const maxConcurrency = resolveMaxConcurrency(values);
 
   const config = await loadSyncApplyConfig(values.config);
-  const providerConfig = config?.providers?.[providerName];
-  if (providerConfig === undefined) {
-    throw new Error(`Provider "${providerName}" is not configured in env-typegen config.`);
-  }
+  const {
+    adapter,
+    providerConfig,
+    localValues: local,
+    remoteValues,
+    changeSet,
+    changeSetHash,
+  } = await resolveSyncApplyChangeSet({ config, providerName, environment, envFile });
 
   const writePolicy = getWritePolicy(config);
-  const adapter = await loadAdapter(providerConfig.adapter, { cwd: process.cwd() });
-  const remote = await adapter.pull({
-    environment,
-    ...(providerConfig.projectId !== undefined && { projectId: providerConfig.projectId }),
-    ...(providerConfig.token !== undefined && { token: providerConfig.token }),
-    ...(providerConfig.options !== undefined && { providerConfig: providerConfig.options }),
-    redactValues: true,
-  });
-
-  const local = await loadEnvSource({ filePath: envFile, allowMissing: true });
   const driftReport = createDriftReport({
     environment: `remote:${providerName}/${environment}`,
     localValues: local,
-    remoteValues: remote.values,
+    remoteValues,
   });
   const policy = evaluatePolicy(driftReport, config?.policy);
-  const changeSet = buildChangeSetFromMaps({ localValues: local, remoteValues: remote.values });
-  const changeSetHash = calculateChangeSetHash(changeSet);
-  const correlationId = buildCorrelationId({
-    providerName,
+  const correlationId = buildSyncApplyCorrelationId({
+    provider: providerName,
     environment,
     mode,
     changeSetHash,
@@ -613,22 +678,34 @@ async function executeSyncApplyUnsafe(
     changeSetHash,
     usedAttestationIds,
   });
+  const confirmationTokenValidation = resolveConfirmationTokenValidation({
+    mode,
+    values,
+    providerName,
+    environment,
+    changeSetHash,
+    correlationId,
+  });
 
   const hasOverrideReason =
     values.override === true ? (values.reason ?? "").trim().length > 0 : true;
 
-  const guardResult = evaluateWriteGuards({
-    mode,
-    environment,
-    policyDecision: policy.decision,
-    writeEnabled: mode === "dry-run" ? true : (writePolicy.enableApply ?? false),
-    isProtectedEnvironment: (writePolicy.protectedEnvironments ?? []).includes(environment),
-    isProtectedBranch: resolveProtectedBranch(values),
-    preflightValidation,
-    hasConfirmationToken:
-      mode === "dry-run" ? true : typeof values["confirmation-token"] === "string",
-    hasOverrideReason,
-    attestationValidation: preflightValidation,
+  const guardResult = await spendConfirmationToken({
+    guardResult: evaluateWriteGuards({
+      mode,
+      environment,
+      policyDecision: policy.decision,
+      writeEnabled: mode === "dry-run" ? true : (writePolicy.enableApply ?? false),
+      isProtectedEnvironment: (writePolicy.protectedEnvironments ?? []).includes(environment),
+      isProtectedBranch: resolveProtectedBranch(values),
+      preflightValidation,
+      confirmationTokenValidation,
+      evidenceSigningValidation: resolveEvidenceSigningValidation(mode),
+      hasOverrideReason,
+      attestationValidation: preflightValidation,
+    }),
+    confirmationTokenValidation,
+    nonceStorePath: writePolicy.confirmationNonceStorePath ?? DEFAULT_CONFIRMATION_NONCE_STORE_PATH,
   });
 
   const lifecycleEvents = buildInitialLifecycleEvents({
@@ -911,8 +988,8 @@ async function handleAllowedApply(params: {
   changeSetHash: string;
   evidenceBundleId: string;
   lifecycleEvents: AuditEvent[];
-  adapter: Awaited<ReturnType<typeof loadAdapter>>;
-  providerConfig: NonNullable<EnvTypegenConfig["providers"]>[string];
+  adapter: SyncApplyChangeSetResolution["adapter"];
+  providerConfig: SyncApplyChangeSetResolution["providerConfig"];
   writePolicy: EnvTypegenWritePolicyConfig;
   strategy: OrchestrationStrategy;
   maxConcurrency: number;

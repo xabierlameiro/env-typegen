@@ -38,5 +38,6 @@ export type AuditEvent = {
     skipped: number;
   };
   reasons?: string[];
+  metadata?: Record<string, unknown>;
   message: string;
 };
