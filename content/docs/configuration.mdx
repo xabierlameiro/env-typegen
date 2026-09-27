@@ -392,6 +392,7 @@ type EnvTypegenWritePolicyConfig = {
   protectedEnvironments?: string[]; // Environments that require protected branch execution
   requirePreflight?: boolean; // Require preflight report before apply
   auditLogPath?: string; // Path to write the apply audit log
+  confirmationNonceStorePath?: string; // Directory that records used confirmation tokens (default: .env-typegen/confirmation-nonces)
   // executionBudget, sloPolicy, incidentState — see Operations and
   // Governance Chaos and SLO pages for their shapes and usage
 };
