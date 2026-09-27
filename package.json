@@ -112,7 +112,7 @@
     "portless": "^0.15.6",
     "prettier": "^3.9.9",
     "tailwindcss": "^4",
-    "typescript": "^5",
+    "typescript": "^6",
     "typescript-eslint": "^8.70.1",
     "vite": "^8.3.1",
     "vitest": "^5.0.2"
