@@ -27,6 +27,7 @@ import {
   inferTypes,
   // Generators
   generateTypeScriptTypes,
+  generateEnvValidation,
   generateZodSchema,
   generateT3Env,
   generateDeclaration,
@@ -70,12 +71,12 @@ correlation are all satisfied in CI workflows.
 
 ## Architecture map
 
-| Layer                  | Key functions                                                                          |
-| ---------------------- | -------------------------------------------------------------------------------------- |
-| Parse and infer        | `parseEnvFile`, `parseEnvFileContent`, `inferType`, `inferTypes`                       |
-| Generate artifacts     | `generateTypeScriptTypes`, `generateZodSchema`, `generateT3Env`, `generateDeclaration` |
-| Pipeline orchestration | `runGenerate`, `runValidationCommand`                                                  |
-| Integrations           | `loadCloudSource`, `loadPlugins`, plugin application helpers                           |
+| Layer                  | Key functions                                                                                                   |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Parse and infer        | `parseEnvFile`, `parseEnvFileContent`, `inferType`, `inferTypes`                                                |
+| Generate artifacts     | `generateTypeScriptTypes`, `generateEnvValidation`, `generateZodSchema`, `generateT3Env`, `generateDeclaration` |
+| Pipeline orchestration | `runGenerate`, `runValidationCommand`                                                                           |
+| Integrations           | `loadCloudSource`, `loadPlugins`, plugin application helpers                                                    |
 
 ## Additional public exports
 
@@ -114,13 +115,141 @@ Use these when you need lower-level contract validation and CI report compositio
 import {
   parseCommentBlock,
   inferenceRules,
+  type EnvVarType,
+  type ParsedEnvFile,
+  type ParsedEnvVar,
+  type CommentAnnotations,
+  type InferenceRule,
   type EnvContract,
   type EnvContractEntry,
   type EnvVarRuntime,
 } from "@xlameiro/env-typegen";
 ```
 
-Use these to build custom tooling around annotation parsing, inference customization, or strongly typed contract objects.
+Use these to build custom tooling around annotation parsing, inference customization, or strongly typed contract objects. `EnvVarType`, `ParsedEnvFile`, and `ParsedEnvVar` are the core domain types needed when passing parsed data between custom pipeline stages.
+
+## Core domain types
+
+### `EnvVarType`
+
+The set of semantic types the inference engine can assign to an environment variable:
+
+```typescript
+type EnvVarType =
+  | "string"
+  | "number"
+  | "boolean"
+  | "url"
+  | "email"
+  | "semver"
+  | "json"
+  | "unknown";
+```
+
+`"semver"` matches values like `1.2.3`, `"json"` matches non-null JSON objects or arrays, and `"unknown"` is assigned when no rule matches or the value is empty.
+
+### `ParsedEnvFile`
+
+The top-level result returned by `parseEnvFile` and `parseEnvFileContent`:
+
+```typescript
+type ParsedEnvFile = {
+  filePath: string; // Source file path (or label for inline content)
+  vars: ParsedEnvVar[]; // Ordered list of parsed variables
+  warnings: ParsedEnvWarning[]; // Non-fatal parse issues (e.g., duplicate keys)
+};
+```
+
+Always check `parsed.warnings` after parsing — duplicate keys are reported there and will silently override each other without warning during generation.
+
+### `ParsedEnvWarning`
+
+A non-fatal issue emitted into `ParsedEnvFile.warnings`. Not directly importable as a standalone type — access it via the `warnings` array:
+
+```typescript
+type ParsedEnvWarning = {
+  code: "ENV_DUPLICATE_KEY"; // Only one code exists in v1
+  message: string; // Human-readable description
+  line: number; // Line number of the duplicate declaration
+  key: string; // Name of the duplicated variable
+};
+
+// Usage
+const parsed = parseEnvFile(".env.example");
+for (const warning of parsed.warnings) {
+  console.warn(`[${warning.code}] ${warning.message} (line ${warning.line})`);
+}
+```
+
+### `ParsedEnvVar`
+
+A single variable entry produced by the parser. All 14 fields:
+
+```typescript
+type ParsedEnvVar = {
+  key: string; // Variable name (e.g. "DATABASE_URL")
+  rawValue: string; // Raw string value before type coercion
+  inferredType: EnvVarType | null; // Type inferred from key+value heuristics; null before inferTypes() runs
+  annotatedType?: EnvVarType; // Type explicitly declared via @type annotation
+  description?: string; // Description from @description or first free-form comment line
+  isRequired: boolean; // true when @required annotation is present
+  isOptional?: boolean; // true when @optional annotation is present
+  isClientSide?: boolean; // true for NEXT_PUBLIC_ prefix or @client annotation
+  group?: string; // Logical group from @group annotation
+  lineNumber?: number; // Source line number in the .env file
+  enumValues?: string[]; // Allowed literal values from @enum annotation
+  constraints?: { min?: number; max?: number }; // Numeric range from @min / @max annotations
+  runtime?: "server" | "client" | "edge"; // Runtime scope from @runtime annotation
+  isSecret?: boolean; // true when @secret annotation is present — value omitted from reports
+};
+```
+
+### `CommentAnnotations`
+
+The structured output of `parseCommentBlock`. Contains only the annotations extracted from a single comment block — inference results are not included. `ParsedEnvVar` merges annotations with inference results.
+
+```typescript
+type CommentAnnotations = {
+  annotatedType?: EnvVarType; // From @type
+  description?: string; // From @description or first free-form line
+  isRequired: boolean; // true when @required present
+  enumValues?: string[]; // From @enum (comma-separated values)
+  constraints?: { min?: number; max?: number }; // From @min / @max
+  runtime?: "server" | "client" | "edge"; // From @runtime
+  isSecret?: boolean; // true when @secret present
+};
+```
+
+### `InferenceRule`
+
+The shape of a custom or built-in type inference rule.
+
+```typescript
+type InferenceRule = {
+  id: string; // Unique rule identifier (e.g. "P2_key_url_suffix")
+  priority: number; // Evaluation order — lower number runs first
+  match: (key: string, value: string) => boolean; // Predicate
+  type: EnvVarType; // Inferred type when predicate returns true
+};
+```
+
+The exported `inferenceRules` constant contains all 11 built-in rules. Custom rules injected via `inferenceRules` in config are evaluated **before** built-in rules. All rules run in ascending `priority` order — use a priority lower than `2` to guarantee your rule fires first.
+
+Built-in rule reference:
+
+| ID                         | Priority | Infers    | Trigger                                                           |
+| -------------------------- | -------- | --------- | ----------------------------------------------------------------- |
+| `P2_key_url_suffix`        | 2        | `url`     | Key ends with `_URL`                                              |
+| `P3_key_email_from_suffix` | 3        | `email`   | Key ends with `_EMAIL` or `_FROM`                                 |
+| `P4_boolean_prefix`        | 4        | `boolean` | Key starts with `ENABLE_`, `DISABLE_`, `IS_`, `DEBUG`, `FEATURE_` |
+| `P5_key_port`              | 5        | `number`  | Key ends with `_PORT` or equals `PORT`                            |
+| `P6_empty_unknown`         | 6        | `unknown` | Value is empty string                                             |
+| `P7_boolean_literal`       | 7        | `boolean` | Value is `true` or `false`                                        |
+| `P8_numeric_literal`       | 8        | `number`  | Value matches `/^\d+(?:\.\d+)?$/`                                 |
+| `P9_semver`                | 9        | `semver`  | Value matches `/^\d+\.\d+\.\d+/`                                  |
+| `P10_url_scheme`           | 10       | `url`     | Value has a URI scheme (`://`) and is not comma-separated         |
+| `P11_email_literal`        | 11       | `email`   | Value matches `local@domain` pattern                              |
+| `P12_json_object_array`    | 12       | `json`    | Value parses to a non-null JSON object or array                   |
 
 ## Core functions
 
@@ -189,6 +318,25 @@ Produces a `.d.ts` file augmenting `NodeJS.ProcessEnv`.
 const output = generateDeclaration(typed);
 ```
 
+### `generateEnvValidation(parsed)`
+
+Produces a `validateEnv()` runtime helper that throws at startup when a required variable is absent.
+
+```typescript
+const code = generateEnvValidation(typed);
+// Emits:
+// export function validateEnv(): void {
+//   const required = ["DATABASE_URL", "PORT"];
+//   for (const key of required) {
+//     if (!process.env[key]) {
+//       throw new Error(`Missing required environment variable: ${key}`);
+//     }
+//   }
+// }
+```
+
+Pair with `generateTypeScriptTypes` to get both compile-time types and a runtime startup guard from the same source.
+
 ### `runGenerate(options)`
 
 Orchestrates the full pipeline: parse → infer → generate → write to disk.
@@ -217,6 +365,30 @@ const exitCode = await runValidationCommand({
 
 `verify` is intended for CI gates and fails on warnings and errors.
 
+### `runCheck(options)`
+
+Low-level single-source validator. Returns `"ok"` or `"fail"` without calling `process.exit`.
+
+```typescript
+import { runCheck } from "@xlameiro/env-typegen";
+
+const status = await runCheck({
+  input: ".env.local",
+  contract: "env.contract.mjs",
+  environment: "production",
+  strict: true,
+  json: true,
+});
+
+if (status === "fail") {
+  process.exit(1);
+}
+```
+
+Options: `input` (required), `contract`, `cwd`, `environment`, `strict` (default `true`), `json`, `pretty`, `silent`.
+
+Use `runCheck` when you need to inspect the result in code. Use `runValidationCommand` when you want the full CLI subcommand behavior including plugin support.
+
 ### `loadCloudSource({ provider, filePath })`
 
 Loads environment values from provider snapshot files.
@@ -228,21 +400,34 @@ const values = await loadCloudSource({
 });
 ```
 
-### `loadPlugins({ pluginPaths, configPlugins })`
+### `loadPlugins(options)`
 
-Loads plugin references and lets you apply hook chains.
+Loads plugin references and lets you apply hook chains. Accepts `pluginPaths` (file paths), `configPlugins` (inline objects or paths from config), and `cwd` (for path resolution in monorepos).
 
 ```typescript
 const plugins = await loadPlugins({
-  pluginPaths: ["./plugins/report-plugin.mjs"],
+  pluginPaths: ["./plugins/my-plugin.mjs"],
+  configPlugins: [inlinePluginObject], // optional — inline EnvTypegenPlugin objects
+  cwd: process.cwd(), // optional — defaults to process.cwd()
 });
 
-const report = applyReportPlugins(baseReport, plugins);
+// Apply individual hook chains after loading:
+const modifiedContract = applyContractPlugins(contract, plugins);
+const modifiedValues = applySourcePlugins(
+  { environment: "production", values },
+  plugins,
+);
+const modifiedReport = applyReportPlugins(report, plugins);
 ```
+
+All three apply helpers are composable — run only the ones whose output you consume.
 
 ## Integration examples
 
 ### Build step wrapper
+
+For CLI-driven generation scripts, prefer `--format`; keep `--generator` only as a
+backward-compatible alias.
 
 ```typescript
 await runGenerate({
@@ -399,6 +584,185 @@ Recommended automation sequence:
 2. Run apply dry-run checks.
 3. Run conformance smoke to validate adapter/orchestration invariants.
 4. Run promotion smoke to validate advisory-enforce -> enforce -> apply progression.
+
+## Policy distribution API
+
+Use these when publishing, promoting, or validating policy packs programmatically across
+governance channels (`dev` → `stage` → `prod`).
+
+```typescript
+import {
+  publishPolicyPack,
+  assertPolicyPackPromotion,
+  canPromotePolicyChannel,
+  isPolicyDistributionChannel,
+  isPolicyDistributionSink,
+  type PolicyDistributionChannel,
+  type PolicyDistributionSink,
+  type PolicyChannelPromotion,
+  type PublishPolicyPackParams,
+  type PolicyPackPublicationRecord,
+} from "@xlameiro/env-typegen";
+```
+
+### `canPromotePolicyChannel({ from, to })`
+
+Returns `true` when the promotion path is allowed. Valid paths: `dev → stage`, `stage → prod`.
+
+```typescript
+const allowed = canPromotePolicyChannel({ from: "stage", to: "prod" }); // true
+const blocked = canPromotePolicyChannel({ from: "dev", to: "prod" }); // false
+```
+
+### `assertPolicyPackPromotion({ promotedFrom, to })`
+
+Throws an `Error` when the promotion path is invalid. Use as a guard before writing a pack
+to a channel.
+
+```typescript
+assertPolicyPackPromotion({ promotedFrom: "stage", to: "prod" }); // no-op
+assertPolicyPackPromotion({ promotedFrom: "dev", to: "prod" }); // throws
+```
+
+### `publishPolicyPack(params)`
+
+Writes a validated policy pack JSON file to the target sink and channel. Returns a
+`PolicyPackPublicationRecord`.
+
+```typescript
+const record = await publishPolicyPack({
+  source: "./policy/base-governance.policy.json",
+  content: JSON.stringify(packObject),
+  channel: "stage",
+  target: { sink: "local", destination: "./dist/policy" },
+  promotedFrom: "dev",
+});
+console.log(record.checksum); // SHA-256 of the written content
+```
+
+### Type guards
+
+`isPolicyDistributionChannel(value)` and `isPolicyDistributionSink(value)` are runtime type
+guards safe for validating user input or JSON-parsed configuration.
+
+```typescript
+if (!isPolicyDistributionChannel(input.channel)) {
+  throw new Error(`Unknown channel: ${input.channel}`);
+}
+```
+
+## CI report types
+
+These types model the machine-readable output emitted by `buildCiReport` and consumed by `formatCiReport` and external CI integrations.
+
+```typescript
+import {
+  buildCiReport,
+  formatCiReport,
+  type CiReport,
+  type Issue,
+  type Expected,
+  type IssueCode,
+  type IssueSeverity,
+  type ReportStatus,
+  type Environment,
+} from "@xlameiro/env-typegen";
+```
+
+### `ReportStatus`
+
+```typescript
+type ReportStatus = "pass" | "fail";
+```
+
+### `IssueSeverity`
+
+```typescript
+type IssueSeverity = "error" | "warning";
+```
+
+### `Environment`
+
+The environment context associated with a validation result:
+
+```typescript
+type Environment =
+  | "local"
+  | "example"
+  | "production"
+  | "preview"
+  | "test"
+  | "cloud";
+```
+
+### `IssueCode`
+
+All six issue codes that can appear in a `CiReport`:
+
+| Code                   | Severity            | Meaning                                                                               |
+| ---------------------- | ------------------- | ------------------------------------------------------------------------------------- |
+| `MISSING_REQUIRED`     | `error`             | Required variable is absent from the validated source                                 |
+| `TYPE_MISMATCH`        | `error`             | Variable is present but fails type validation                                         |
+| `UNDECLARED`           | `error` / `warning` | Variable is present but not in the contract (error in strict mode, warning otherwise) |
+| `ENV_SECRET_EXPOSED`   | `error`             | A secret variable has a non-empty value in a non-local environment                    |
+| `ENUM_VIOLATION`       | `error`             | Variable value is not in the declared `enumValues` list                               |
+| `CONSTRAINT_VIOLATION` | `error`             | Numeric variable value violates a declared `min` or `max` constraint                  |
+
+### `Expected`
+
+A discriminated union describing what type the contract requires for a given variable:
+
+```typescript
+type Expected =
+  | { type: "string" }
+  | { type: "number"; min?: number; max?: number }
+  | { type: "boolean" }
+  | { type: "enum"; values: string[] }
+  | { type: "url" }
+  | { type: "email" }
+  | { type: "json" }
+  | { type: "semver" }
+  | { type: "unknown" };
+```
+
+Narrow on `expected.type` when consuming issues programmatically — only `"enum"` carries `values` and only `"number"` carries `min` / `max`.
+
+### `Issue`
+
+```typescript
+type Issue = {
+  code: IssueCode;
+  type: IssueSeverity;
+  key: string; // Variable name that triggered the issue
+  expected: Expected; // What the contract requires
+  received?: string; // Actual type string inferred from the source
+  environment: Environment; // Which environment context the issue originates from
+  severity: IssueSeverity; // Duplicate of type — kept for consumers that key on severity
+  value: null; // Always null — secrets must never appear in report artifacts
+};
+```
+
+`value` is always `null` by design. Even when `--debug-values` is passed to the CLI, secret variables (those with `isSecret: true` in the contract) are never written into the JSON report. `--debug-values` increases verbosity for non-secret variables at the CLI output layer only — it does not populate this field.
+
+### `CiReport`
+
+The top-level report object returned by `buildCiReport` and accepted by `formatCiReport`:
+
+```typescript
+type CiReport = {
+  schemaVersion: 1; // Always 1 in the current release
+  status: ReportStatus; // "pass" or "fail"
+  summary: {
+    errors: number; // Count of error-severity issues
+    warnings: number; // Count of warning-severity issues
+  };
+  issues: Issue[];
+  meta: {
+    env: string; // Environment label (e.g. "production")
+    timestamp: string; // ISO 8601 timestamp of report generation
+  };
+};
+```
 
 ## FAQ
 
