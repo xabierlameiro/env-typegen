@@ -27,7 +27,7 @@ This project follows the [Contributor Covenant](./CODE_OF_CONDUCT.md). By partic
    git clone https://github.com/xlameiro/env-typegen.git
    cd env-typegen
    ```
-2. **Install dependencies** (requires Node.js ≥ 18 and pnpm ≥ 9):
+2. **Install dependencies** (requires Node.js ≥ 22 and pnpm ≥ 9):
    ```bash
    pnpm install
    ```

@@ -6,10 +6,10 @@ import { describe, expect, it } from "vitest";
  * Full unit tests for parser/inferrer/generators are added in Phases 2–4.
  */
 describe("Phase 1 — Foundation", () => {
-  it("should run on Node.js >= 18 as required by package.json engines field", () => {
+  it("should run on Node.js >= 22 as required by package.json engines field", () => {
     const raw = process.version.replace("v", "").split(".")[0] ?? "0";
     const major = Number.parseInt(raw, 10);
-    expect(major).toBeGreaterThanOrEqual(18);
+    expect(major).toBeGreaterThanOrEqual(22);
   });
 
   it("should be running in a Node.js environment (not browser)", () => {
