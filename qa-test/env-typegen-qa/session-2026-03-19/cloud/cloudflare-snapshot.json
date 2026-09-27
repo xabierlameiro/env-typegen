@@ -1,9 +1,0 @@
-{
-  "result": [
-    { "name": "SERVICE_URL", "text": "https://api.example.com" },
-    { "name": "PORT", "text": "3000" },
-    { "name": "ENABLE_ANALYTICS", "text": "true" },
-    { "name": "NODE_ENV", "text": "development" },
-    { "name": "SECRET_TOKEN", "text": "from-cloudflare" }
-  ]
-}
