@@ -31,8 +31,8 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: pnpm
-          # Writes the .npmrc that maps NODE_AUTH_TOKEN to the registry. The
-          # changesets action used to do this; without it publish fails with ENEEDAUTH.
+          # Writes the .npmrc that points at the registry. The changesets action used to
+          # do this. Authentication comes from npm trusted publishing (OIDC), not a token.
           registry-url: https://registry.npmjs.org
       # pnpm publish delegates to the npm CLI. Trusted publishing needs npm 11.5.1 or later.
       - run: npm install --global npm@^11.5.1
@@ -43,6 +43,4 @@ jobs:
       - run: pnpm --filter @xlameiro/env-typegen build
       - run: pnpm --filter @xlameiro/env-typegen release
         env:
-          # Fallback for when no trusted publisher is configured on npmjs.com.
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           HUSKY: 0
