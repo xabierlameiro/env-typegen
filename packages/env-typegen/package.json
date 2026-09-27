@@ -1,6 +1,6 @@
 {
   "name": "@xlameiro/env-typegen",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Stop using process.env wrong. Zero-config TypeScript types from .env.example.",
   "keywords": [
     "env",
