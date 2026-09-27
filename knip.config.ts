@@ -62,6 +62,9 @@ const config: KnipConfig = {
   // default export to support `import adapter` and `import { adapter }` consumer
   // patterns — suppress the duplicate-export check project-wide.
   exclude: ["duplicates"],
+  // knip 6 reports exported types that are only referenced in their own file. Those
+  // types name the fields of other exported types, so they stay exported.
+  ignoreExportsUsedInFile: { type: true },
 };
 
 export default config;
