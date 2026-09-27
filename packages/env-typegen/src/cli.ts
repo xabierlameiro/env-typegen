@@ -1,5 +1,6 @@
 // CLI entry point — shebang (#!/usr/bin/env node) is injected by tsup banner config.
-import { existsSync, realpathSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { readFile, unlink } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -16,7 +17,7 @@ import {
   type GeneratorName,
 } from "./config.js";
 import { runGenerate, type RunGenerateOptions } from "./pipeline.js";
-import { error, log } from "./utils/logger.js";
+import { error, log, success } from "./utils/logger.js";
 import { runValidationCommand } from "./validation-command.js";
 import { startWatch } from "./watch.js";
 
@@ -28,48 +29,34 @@ const _require = createRequire(import.meta.url);
 const VERSION = (_require("../package.json") as { version: string }).version;
 
 const HELP_TEXT = [
-  "env-typegen — Generate TypeScript types from .env.example",
+  "env-typegen — Stop using process.env wrong.",
   "",
   "Usage:",
-  "  env-typegen [generate] -i <path> [options]",
-  "  env-typegen pull <provider> [options]",
-  "  env-typegen plan [options]",
-  "  env-typegen sync-apply <provider> [options]",
-  "  env-typegen sync-preview <provider> [options]",
-  "  env-typegen verify [options]",
-  "  env-typegen check [options]",
-  "  env-typegen diff [options]",
-  "  env-typegen doctor [options]",
+  "  env-typegen                     Auto-detect .env.example, write src/env.ts",
+  "  env-typegen generate [options]  Generate types from env files",
+  "  env-typegen <subcommand> [options]",
+  "",
+  "Subcommands:",
+  "  check         Validate one environment against the contract",
+  "  diff          Compare multiple environments for drift",
+  "  doctor        Combine check + diff diagnostics",
+  "  verify        Strict CI verification (fails on warnings/errors)",
+  "  pull          Pull environment values from providers",
+  "  plan          Build a sync plan from source to destination",
+  "  sync-preview  Preview a sync operation without writes",
+  "  sync-apply    Apply a planned sync operation",
   "",
   "Options:",
-  "  -i, --input <path>         Path to .env.example file(s). May be specified multiple times.",
-  "  -o, --output <path>        Output base path (default: env.generated.ts).",
-  "                             With multiple generators, suffixes are appended:",
-  "                             env.generated.typescript.ts, .zod.ts, .t3.ts, .declaration.d.ts",
-  "  -f, --format <name>        Generator format: ts|zod|t3|declaration",
-  "                             May be specified multiple times.",
-  "  -g, --generator <name>     Backward-compatible alias for --format",
-  "      --stdout               Print generated output to stdout",
-  "      --dry-run              Parse and generate without writing files",
-  "      --no-format            Disable prettier formatting",
-  "      --strategy <mode>      sync-apply only: fail-fast | fail-late",
-  "      --max-concurrency <n>  sync-apply only: bounded target parallelism",
-  "  -s, --silent               Suppress success logs",
-  "  -w, --watch                Watch for changes and regenerate",
-  "  -c, --config <path>        Path to config file",
-  "  -v, --version              Print version",
-  "  -h, --help                 Show this help",
-  "",
-  "Config file:",
-  "  Auto-discovered in order: env-typegen.config.mjs → .js (in cwd)",
-  "  CLI flags always override config file values.",
-  "  Use defineConfig() from @xlameiro/env-typegen for IDE autocompletion.",
-  "  Note: with multiple --input values, --output basename is ignored;",
-  "        outputs are named from each input file stem.",
-  "",
-  "Exit codes:",
-  "  0  Success — files generated without errors",
-  "  1  Error — invalid flags or generation failed",
+  "  -i, --input <path>      Input env file (default: auto-detect .env.example)",
+  "  -o, --output <path>     Output file (default: src/env.ts)",
+  "  -f, --format <name>     Output format: ts|zod|t3|declaration (default: ts)",
+  "  -g, --generator <name>  Alias for --format (backward compatible)",
+  "      --no-format         Skip Prettier formatting",
+  "  -m, --mode augment      Write env.d.ts augmentation instead (no migration needed)",
+  "      --check             Exit 1 if src/env.ts is out of sync with source file",
+  "  -w, --watch             Watch for changes and regenerate",
+  "  -v, --version           Print version",
+  "  -h, --help              Show this help",
 ].join("\n");
 
 const VALIDATION_SUBCOMMANDS = new Set(["check", "diff", "doctor", "verify"]);
@@ -82,6 +69,47 @@ const FORMAT_TO_GENERATOR: Readonly<Record<string, GeneratorName>> = {
   declaration: "declaration",
 };
 
+/** Ordered list of candidate input files checked when no --input flag is provided. */
+const ENV_INPUT_FALLBACK_CHAIN = [".env.example", ".env.example.local", ".env"] as const;
+
+/** Default output path for the zero-arg generate case. */
+const DEFAULT_OUTPUT = "src/env.ts";
+
+/** Default output path when --mode augment is used. */
+const DEFAULT_AUGMENT_OUTPUT = "env.d.ts";
+
+/**
+ * Walks the fallback chain and returns the first candidate that exists in `cwd`.
+ * Returns `undefined` when none are found.
+ */
+function findInputInFallbackChain(cwd: string): string | undefined {
+  for (const candidate of ENV_INPUT_FALLBACK_CHAIN) {
+    const resolved = path.resolve(cwd, candidate);
+    if (existsSync(resolved)) return resolved;
+  }
+  return undefined;
+}
+
+/** Counts non-comment, non-blank lines that contain `=` (rough env variable count). */
+function countEnvVars(content: string): number {
+  return content.split("\n").filter((line) => {
+    const trimmed = line.trim();
+    return trimmed.length > 0 && !trimmed.startsWith("#") && trimmed.includes("=");
+  }).length;
+}
+
+/** Returns the key of the first non-comment variable in an env file, or `undefined`. */
+function getFirstVarName(content: string): string | undefined {
+  for (const line of content.split("\n")) {
+    const trimmed = line.trim();
+    if (trimmed.length > 0 && !trimmed.startsWith("#")) {
+      const eqIndex = trimmed.indexOf("=");
+      if (eqIndex > 0) return trimmed.slice(0, eqIndex).trim();
+    }
+  }
+  return undefined;
+}
+
 function normalizeGenerator(input: string): GeneratorName | undefined {
   return FORMAT_TO_GENERATOR[input] ?? FORMAT_TO_GENERATOR[input.toLowerCase()];
 }
@@ -93,7 +121,7 @@ function resolveGenerators(
 ): GeneratorName[] {
   const requested = [...(rawFormats ?? []), ...(rawGenerators ?? [])].map(String);
   if (requested.length === 0) {
-    return fallback ?? (["typescript", "zod", "t3", "declaration"] as GeneratorName[]);
+    return fallback ?? (["typescript"] as GeneratorName[]);
   }
 
   const normalizedGenerators = requested
@@ -137,6 +165,178 @@ function applyConfigPaths(config: EnvTypegenConfig, configDir: string): EnvTypeg
     ...(input !== undefined && { input }),
     ...(output !== undefined && { output }),
   };
+}
+
+type ResolvedInput = {
+  input: string | string[];
+  isZeroArgMode: boolean;
+  inputContent: string | undefined;
+};
+
+/**
+ * Resolves the input file for the generate pipeline.
+ * When no explicit input is provided, walks the ENV_INPUT_FALLBACK_CHAIN.
+ * Exits with code 1 and prints actionable guidance when no file is found.
+ */
+function resolveInput(
+  cliInput: string[] | undefined,
+  configInput: string | string[] | undefined,
+  cwd: string,
+): ResolvedInput {
+  const explicit = cliInput ?? configInput;
+  if (explicit !== undefined) {
+    return { input: explicit, isZeroArgMode: false, inputContent: undefined };
+  }
+
+  const detected = findInputInFallbackChain(cwd);
+  if (detected === undefined) {
+    error("No input file found.");
+    log("");
+    log(`  Tried: ${ENV_INPUT_FALLBACK_CHAIN.join(", ")}`);
+    log("");
+    log("  Create a .env.example with your required environment variables:");
+    log("    DATABASE_URL=postgres://localhost/myapp");
+    log("    NEXTAUTH_SECRET=changeme");
+    log("");
+    log("  Or specify a file: npx env-typegen --input .env.local");
+    process.exit(1);
+  }
+
+  const inputContent = readFileSync(detected, "utf8");
+  const count = countEnvVars(inputContent);
+  const displayPath = path.relative(cwd, detected);
+  success(`Found ${displayPath} (${count} variable${count === 1 ? "" : "s"})`);
+  return { input: detected, isZeroArgMode: true, inputContent };
+}
+
+/**
+ * Strip lines that are expected to differ between two otherwise identical
+ * generated files — currently just the ISO timestamp comment emitted by the
+ * TypeScript generator's header.
+ */
+function normalizeForComparison(content: string): string {
+  return content
+    .split("\n")
+    .filter((line) => !line.trimStart().startsWith("// Generated at:"))
+    .join("\n")
+    .trim();
+}
+
+/**
+ * Simple sync-check: compares the currently on-disk output file to what would
+ * be generated from the input right now. Exits 0 if in sync, 1 if not.
+ *
+ * This is distinct from the `check` subcommand (which requires an explicit
+ * contract file). The `--check` flag is the zero-config CI gate: "is my
+ * generated env.ts current?"
+ */
+async function runSyncCheck(options: RunGenerateOptions, outputPath: string): Promise<void> {
+  // Read what's on disk  first; if it doesn't exist we can exit immediately
+  let onDisk: string;
+  try {
+    onDisk = await readFile(outputPath, "utf8");
+  } catch {
+    error(`${path.relative(process.cwd(), outputPath)} does not exist yet.`);
+    log("");
+    log("  Fix: run npx env-typegen to generate it.");
+    process.exit(1);
+    return; // unreachable — process.exit is stubbed in tests
+  }
+
+  // Generate fresh content to a temp file alongside the real output, then
+  // compare. Using a file avoids monkey-patching console.log (which is
+  // fragile under Vitest spies).
+  const tmpPath = `${outputPath}.check.tmp`;
+  try {
+    await runGenerate({ ...options, stdout: false, dryRun: false, silent: true, output: tmpPath });
+  } catch {
+    await unlink(tmpPath).catch(() => undefined);
+    throw new Error("env-typegen: failed to re-generate for --check comparison");
+  }
+  const generated = await readFile(tmpPath, "utf8");
+  await unlink(tmpPath).catch(() => undefined);
+
+  if (normalizeForComparison(generated) === normalizeForComparison(onDisk)) {
+    success(`${path.relative(process.cwd(), outputPath)} is up to date.`);
+    return;
+  }
+
+  const inputDisplay = Array.isArray(options.input)
+    ? (options.input[0] ?? "")
+    : (options.input ?? "");
+  error(
+    `${path.relative(process.cwd(), outputPath)} is out of sync with ${path.relative(process.cwd(), inputDisplay)}.`,
+  );
+  log("");
+  log("  Fix: run npx env-typegen to regenerate.");
+  process.exit(1);
+}
+
+/** Drives the final generate/check/watch dispatch and the zero-arg hint. */
+async function dispatchGenerate(
+  params: {
+    shouldWatch: boolean;
+    isCheck: boolean;
+    isDryRun: boolean;
+    useStdout: boolean;
+    isSilent: boolean;
+    isAugmentMode: boolean;
+    isZeroArgMode: boolean;
+    input: string | string[];
+    output: string;
+    cwd: string;
+    zeroArgInputContent: string | undefined;
+  },
+  options: RunGenerateOptions,
+): Promise<void> {
+  const {
+    shouldWatch,
+    isCheck,
+    isDryRun,
+    useStdout,
+    isSilent,
+    isAugmentMode,
+    isZeroArgMode,
+    input,
+    output,
+    cwd,
+    zeroArgInputContent,
+  } = params;
+
+  if (shouldWatch) {
+    startWatch({ inputPath: input, runOptions: options });
+  } else if (isCheck) {
+    await runSyncCheck(options, output);
+  } else {
+    await runGenerate(options);
+    if (isZeroArgMode && !isDryRun && !useStdout && !isSilent && !isAugmentMode) {
+      const content = zeroArgInputContent ?? readFileSync(input as string, "utf8");
+      printGenerationHint(cwd, output, content);
+    }
+  }
+}
+
+/** Attempts to route `argv` to a subcommand handler. Returns true if handled. */
+async function dispatchSubcommand(argv: string[]): Promise<boolean> {
+  if (await maybeRunPullSubcommand(argv)) return true;
+  if (await maybeRunPlanSubcommand(argv)) return true;
+  if (await maybeRunSyncApplySubcommand(argv)) return true;
+  if (await maybeRunSyncPreviewSubcommand(argv)) return true;
+  if (await maybeRunValidationSubcommand(argv)) return true;
+  return false;
+}
+
+/** Prints the before/after usage hint after a successful zero-arg generation. */
+function printGenerationHint(cwd: string, output: string, inputContent: string): void {
+  const firstVar = getFirstVarName(inputContent);
+  const importPath = `./${path.relative(cwd, output).replace(/\.ts$/, "").replaceAll("\\", "/")}`;
+  log("");
+  if (firstVar !== undefined) {
+    log(`  Before:  process.env.${firstVar}  // string | undefined`);
+    log(`  After:   env.${firstVar}          // string  \u2713`);
+    log("");
+  }
+  log(`  Import:  import { env } from '${importPath}'`);
 }
 
 type ValidationSubcommand = "check" | "diff" | "doctor" | "verify";
@@ -253,12 +453,14 @@ async function maybeRunValidationSubcommand(argv: string[]): Promise<boolean> {
   return true;
 }
 
-async function loadCliConfig(values: { config?: string }): Promise<EnvTypegenConfig | undefined> {
+async function loadCliConfig(
+  values: { config?: string },
+  cwd: string,
+): Promise<EnvTypegenConfig | undefined> {
   if (values.config !== undefined) {
     return loadExplicitConfig(path.resolve(values.config), values.config);
   }
 
-  const cwd = process.cwd();
   const fileConfig = await loadConfig(cwd);
   if (fileConfig !== undefined) {
     const autoConfigPath = findAutoDiscoveredConfigPath(cwd);
@@ -270,25 +472,14 @@ async function loadCliConfig(values: { config?: string }): Promise<EnvTypegenCon
   return fileConfig;
 }
 
-export async function runCli(argv: string[] = process.argv.slice(2)): Promise<void> {
+export async function runCli(
+  argv: string[] = process.argv.slice(2),
+  cwd = process.cwd(),
+): Promise<void> {
   // "generate" is the implicit default subcommand — accept it explicitly as an alias
   // so `env-typegen generate -i ...` behaves the same as `env-typegen -i ...`.
   const normalizedArgv = parseGenerateAlias(argv);
-  if (await maybeRunPullSubcommand(normalizedArgv)) {
-    return;
-  }
-  if (await maybeRunPlanSubcommand(normalizedArgv)) {
-    return;
-  }
-  if (await maybeRunSyncApplySubcommand(normalizedArgv)) {
-    return;
-  }
-  if (await maybeRunSyncPreviewSubcommand(normalizedArgv)) {
-    return;
-  }
-  if (await maybeRunValidationSubcommand(normalizedArgv)) {
-    return;
-  }
+  if (await dispatchSubcommand(normalizedArgv)) return;
 
   const { values } = parseArgs({
     args: normalizedArgv,
@@ -303,6 +494,8 @@ export async function runCli(argv: string[] = process.argv.slice(2)): Promise<vo
       silent: { type: "boolean", short: "s" },
       watch: { type: "boolean", short: "w" },
       config: { type: "string", short: "c" },
+      check: { type: "boolean" },
+      mode: { type: "string", short: "m" },
       version: { type: "boolean", short: "v" },
       help: { type: "boolean", short: "h" },
     } as const,
@@ -318,20 +511,33 @@ export async function runCli(argv: string[] = process.argv.slice(2)): Promise<vo
     return;
   }
 
-  const fileConfig = await loadCliConfig(values);
+  const fileConfig = await loadCliConfig(values, cwd);
+
+  // Validate --mode flag
+  if (values.mode !== undefined && values.mode !== "augment") {
+    error(`Unknown --mode value: ${values.mode}. Valid: augment`);
+    process.exit(1);
+  }
+  const isAugmentMode = values.mode === "augment";
 
   // Merge: CLI flags take precedence over config file values
   const cliInput = values.input?.length ? values.input : undefined;
-  const input: string | string[] | undefined = cliInput ?? fileConfig?.input;
-  if (input === undefined) {
-    error("No input file specified. Use -i <path> or set input in env-typegen.config.mjs");
-    process.exit(1);
-  }
+  const {
+    input,
+    isZeroArgMode,
+    inputContent: zeroArgInputContent,
+  } = resolveInput(cliInput, fileConfig?.input, cwd);
 
-  const output = values.output ?? fileConfig?.output ?? "env.generated.ts";
+  // Resolve output path (always absolute, anchored to cwd for testability)
+  const defaultOutput = isAugmentMode ? DEFAULT_AUGMENT_OUTPUT : DEFAULT_OUTPUT;
+  const rawOutput = values.output ?? fileConfig?.output ?? defaultOutput;
+  const output = path.resolve(cwd, rawOutput);
 
   // Collect and validate generators from --format (spec) and --generator (compat)
-  const generators = resolveGenerators(values.format, values.generator, fileConfig?.generators);
+  let generators = resolveGenerators(values.format, values.generator, fileConfig?.generators);
+  if (isAugmentMode) {
+    generators = ["declaration"];
+  }
 
   const shouldFormat = values["no-format"] === true ? false : (fileConfig?.format ?? true);
   const useStdout = values.stdout ?? false;
@@ -350,11 +556,22 @@ export async function runCli(argv: string[] = process.argv.slice(2)): Promise<vo
     ...(fileConfig?.inferenceRules !== undefined && { inferenceRules: fileConfig.inferenceRules }),
   };
 
-  if (shouldWatch) {
-    startWatch({ inputPath: input, runOptions: options });
-  } else {
-    await runGenerate(options);
-  }
+  await dispatchGenerate(
+    {
+      shouldWatch,
+      isCheck: values.check === true,
+      isDryRun,
+      useStdout,
+      isSilent,
+      isAugmentMode,
+      isZeroArgMode,
+      input,
+      output,
+      cwd,
+      zeroArgInputContent,
+    },
+    options,
+  );
 }
 
 // Only auto-execute when this file is the CLI entry point, not when imported.
