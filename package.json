@@ -107,7 +107,7 @@
     "eslint-plugin-unicorn": "^63.0.0",
     "husky": "^9.1.7",
     "jsdom": "^29.0.0",
-    "knip": "^5.86.0",
+    "knip": "^6.38.0",
     "lint-staged": "^16.4.0",
     "portless": "^0.7.0",
     "prettier": "^3.8.1",
