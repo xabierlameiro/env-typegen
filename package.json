@@ -101,7 +101,7 @@
     "@vitest/coverage-v8": "^5.0.5",
     "babel-plugin-react-compiler": "^1.0.0",
     "eslint": "^10",
-    "eslint-config-next": "16.4.3",
+    "eslint-config-next": "16.4.5",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-sonarjs": "^4.2.2",
     "eslint-plugin-unicorn": "^76.0.0",
@@ -113,7 +113,7 @@
     "prettier": "^3.9.10",
     "tailwindcss": "^4",
     "typescript": "^6",
-    "typescript-eslint": "^8.72.0",
+    "typescript-eslint": "^8.72.1",
     "vite": "^8.3.5",
     "vitest": "^5.0.5"
   }
