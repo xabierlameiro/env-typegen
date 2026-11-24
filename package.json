@@ -32,7 +32,7 @@
     "vercel:preview": "npx vercel"
   },
   "engines": {
-    "node": ">=20",
+    "node": ">=22",
     "pnpm": ">=10"
   },
   "lint-staged": {

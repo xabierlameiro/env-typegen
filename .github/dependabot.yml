@@ -11,8 +11,12 @@ updates:
       day: "monday"
       time: "09:00"
       timezone: "UTC"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
     rebase-strategy: "auto"
+    # Wait a few days before proposing a new release, so a broken or compromised version
+    # has time to be pulled. Security updates are not delayed.
+    cooldown:
+      default-days: 3
     labels:
       - "dependencies"
     commit-message:
@@ -59,6 +63,13 @@ updates:
         update-types:
           - "minor"
           - "patch"
+      # Everything else in one weekly pull request, instead of one per package.
+      minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
   # ─────────────────────────────────────────────────────
   # GitHub Actions
@@ -72,6 +83,8 @@ updates:
       timezone: "UTC"
     open-pull-requests-limit: 5
     rebase-strategy: "auto"
+    cooldown:
+      default-days: 3
     labels:
       - "dependencies"
       - "github-actions"

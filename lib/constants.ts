@@ -14,7 +14,7 @@ export const APP_LOCALE = "en";
 export const SITE_URL = new URL(env.NEXT_PUBLIC_APP_URL).origin;
 
 // External links
-export const GITHUB_URL = "https://github.com/xlameiro/env-typegen";
+export const GITHUB_URL = "https://github.com/xabierlameiro/env-typegen";
 export const LINKEDIN_URL = "https://www.linkedin.com/in/xlameiro/";
 export const NPM_URL = "https://www.npmjs.com/package/@xlameiro/env-typegen";
 

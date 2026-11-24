@@ -6,9 +6,9 @@ Environment contract governance for modern TypeScript teams.
 
 [![npm version](https://img.shields.io/npm/v/@xlameiro/env-typegen)](https://www.npmjs.com/package/@xlameiro/env-typegen)
 [![npm downloads](https://img.shields.io/npm/dm/@xlameiro/env-typegen)](https://www.npmjs.com/package/@xlameiro/env-typegen)
-[![CI](https://github.com/xlameiro/env-typegen/actions/workflows/ci.yml/badge.svg)](https://github.com/xlameiro/env-typegen/actions/workflows/ci.yml)
-[![GitHub stars](https://img.shields.io/github/stars/xlameiro/env-typegen?style=social)](https://github.com/xlameiro/env-typegen/stargazers)
-[![Maintainer](https://img.shields.io/badge/maintainer-xlameiro-0ea5e9)](https://github.com/xlameiro)
+[![CI](https://github.com/xabierlameiro/env-typegen/actions/workflows/ci.yml/badge.svg)](https://github.com/xabierlameiro/env-typegen/actions/workflows/ci.yml)
+[![GitHub stars](https://img.shields.io/github/stars/xabierlameiro/env-typegen?style=social)](https://github.com/xabierlameiro/env-typegen/stargazers)
+[![Maintainer](https://img.shields.io/badge/maintainer-xabierlameiro-0ea5e9)](https://github.com/xabierlameiro)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 ## Why env-typegen
@@ -228,8 +228,8 @@ Multi-repo bootstrap implementation:
 
 ## Trust signals
 
-- Maintained by [@xlameiro](https://github.com/xlameiro)
-- CI status is public in [`ci.yml`](https://github.com/xlameiro/env-typegen/actions/workflows/ci.yml)
+- Maintained by [@xabierlameiro](https://github.com/xabierlameiro)
+- CI status is public in [`ci.yml`](https://github.com/xabierlameiro/env-typegen/actions/workflows/ci.yml)
 - Security disclosure process in [`SECURITY.md`](SECURITY.md)
 - Contribution workflow in [`CONTRIBUTING.md`](CONTRIBUTING.md)
 
@@ -256,4 +256,4 @@ Then open a pull request.
 
 ## License
 
-MIT © [xlameiro](https://github.com/xlameiro)
+MIT © [xabierlameiro](https://github.com/xabierlameiro)
