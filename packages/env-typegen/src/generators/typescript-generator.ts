@@ -1,6 +1,7 @@
 import path from "node:path";
 
 import type { EnvVarType, ParsedEnvFile } from "../parser/types.js";
+import { escapeJsDocText } from "./escape-jsdoc.js";
 
 /**
  * Maps an EnvVarType to its TypeScript primitive equivalent.
@@ -51,7 +52,7 @@ export function generateTypeScriptTypes(parsed: ParsedEnvFile): string {
     const effectiveType = variable.annotatedType ?? variable.inferredType;
     const optional = variable.isOptional ? "?" : "";
     if (variable.description !== undefined) {
-      lines.push(`    /** ${variable.description} */`);
+      lines.push(`    /** ${escapeJsDocText(variable.description)} */`);
     }
     let propLine = `    readonly ${variable.key}${optional}: string;`;
     if (effectiveType === "number") {

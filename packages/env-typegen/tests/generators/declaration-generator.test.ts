@@ -56,6 +56,14 @@ describe("generateDeclaration", () => {
       expect(output).toContain("/** Main database URL */");
     });
 
+    it("should escape a comment terminator inside the description", () => {
+      const content = "# @description ends */ console.log(1); /*\nKEY=value";
+      const parsed = parseEnvFileContent(content, ".env.example");
+      const output = generateDeclaration(parsed);
+      expect(output).toContain(String.raw`/** ends *\/ console.log(1); /* */`);
+      expect(output).not.toContain("ends */");
+    });
+
     it("should add an inline coercion hint for number vars", () => {
       const parsed = parseEnvFileContent("PORT=3000", ".env.example");
       const output = generateDeclaration(parsed);
