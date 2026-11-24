@@ -24,10 +24,10 @@ This project follows the [Contributor Covenant](./CODE_OF_CONDUCT.md). By partic
 
 1. **Clone** the repository:
    ```bash
-   git clone https://github.com/xlameiro/env-typegen.git
+   git clone https://github.com/xabierlameiro/env-typegen.git
    cd env-typegen
    ```
-2. **Install dependencies** (requires Node.js ≥ 22 and pnpm ≥ 9):
+2. **Install dependencies** (requires Node.js ≥ 22 and pnpm ≥ 10):
    ```bash
    pnpm install
    ```
@@ -140,6 +140,6 @@ This project uses [Changesets](https://github.com/changesets/changesets) for rel
    ```
    Follow the prompts to select the bump type (`patch`, `minor`, `major`) and write a summary.
 2. **Commit the generated `.changeset/*.md` file** alongside your code changes.
-3. When the PR is merged, the maintainer runs `pnpm changeset version` to bump `package.json` and update `CHANGELOG.md`, then publishes to npm.
+3. When the PR is merged, the maintainer runs `pnpm changeset version` to bump `package.json` and update `CHANGELOG.md`, and merges that to `main`. The release workflow then publishes to npm with provenance and creates the GitHub Release.
 
 You do **not** need to manually edit `CHANGELOG.md` or `package.json` version fields.

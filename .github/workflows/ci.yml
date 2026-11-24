@@ -54,6 +54,10 @@ jobs:
         run: pnpm generate
 
       - name: Security audit
+        # A new advisory can land at any time. On a pull request from a fork the author
+        # cannot fix it, so the result is reported without failing their PR. It still
+        # fails on main and on pull requests from this repository.
+        continue-on-error: ${{ github.event.pull_request.head.repo.fork == true }}
         run: pnpm audit --audit-level=moderate
 
       - name: Check for deprecated packages
@@ -138,6 +142,23 @@ jobs:
 
       - name: Build env-typegen
         run: pnpm --filter @xlameiro/env-typegen build
+
+      - name: Smoke test the packed package
+        # Installs the tarball that npm would publish into an empty project, so a broken
+        # `files`, `exports` or `bin` entry fails here and not for users.
+        shell: bash
+        run: |
+          pnpm --filter @xlameiro/env-typegen pack --pack-destination "$RUNNER_TEMP"
+          mkdir "$RUNNER_TEMP/smoke"
+          cd "$RUNNER_TEMP/smoke"
+          npm init -y > /dev/null
+          npm install --no-audit --no-fund "$RUNNER_TEMP"/xlameiro-env-typegen-*.tgz
+          printf 'PORT=3000\nDATABASE_URL=postgres://localhost/db\n' > .env.example
+          npx --no-install env-typegen --version
+          npx --no-install env-typegen --input .env.example --output env.ts
+          grep -q "DATABASE_URL" env.ts
+          node --input-type=module -e "await import('@xlameiro/env-typegen')"
+          node -e "require('@xlameiro/env-typegen')"
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1

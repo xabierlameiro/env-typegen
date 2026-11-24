@@ -1,7 +1,7 @@
 # RFC 9116 security.txt
 # Update Contact, Policy, and Expires annually before deploying to production.
 
-Contact: https://github.com/xlameiro/env-typegen/security/advisories/new
+Contact: https://github.com/xabierlameiro/env-typegen/security/advisories/new
 Expires: 2027-03-16T00:00:00.000Z
-Policy: https://github.com/xlameiro/env-typegen/blob/main/SECURITY.md
+Policy: https://github.com/xabierlameiro/env-typegen/blob/main/SECURITY.md
 Preferred-Languages: en

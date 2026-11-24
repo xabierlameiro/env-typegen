@@ -1,49 +1,36 @@
 # Security Policy
 
-## security.txt
+## Supported versions
 
-This project publishes a machine-readable security disclosure endpoint at `/.well-known/security.txt` (served from `public/.well-known/security.txt`) following [RFC 9116](https://www.rfc-editor.org/rfc/rfc9116). **Update the `Contact`, `Policy`, and `Expires` fields in that file before deploying to production.**
+Security fixes are released for the latest minor version of `@xlameiro/env-typegen`.
 
-## Supported Versions
+| Version | Supported |
+| ------- | --------- |
+| 0.3.x   | ✅        |
+| < 0.3   | ❌        |
 
-| Version         | Supported |
-| --------------- | --------- |
-| Latest (`main`) | ✅        |
+## Reporting a vulnerability
 
-## Reporting a Vulnerability
+Do not open a public issue.
 
-If you discover a security vulnerability, **do not open a public issue**.
+Report it privately through
+[GitHub Security Advisories](https://github.com/xabierlameiro/env-typegen/security/advisories/new).
 
-Report it privately via one of these channels:
+Include:
 
-- **GitHub Security Advisory**: Use the [Report a vulnerability](../../security/advisories/new) button on this repository.
-- **Email**: Contact the maintainer directly (see profile for contact details).
+- The affected version
+- Steps to reproduce, or a proof of concept
+- The impact you expect
+- A suggested fix, if you have one
 
-Please include:
+You will get an acknowledgement within 7 days. A fix is coordinated and released before
+any public disclosure, and reporters are credited in the advisory unless they prefer not to be.
 
-- A description of the vulnerability and its potential impact
-- Steps to reproduce or a proof-of-concept (PoC)
-- Your recommended fix, if you have one
+## Scope
 
-You will receive a response within **72 hours**. We follow responsible disclosure: a fix will be coordinated and released before any public disclosure.
+In scope: the `@xlameiro/env-typegen` package, including the CLI and the code it
+generates (for example, input in a `.env.example` file that leads to code execution in the
+generated output).
 
-## Security Practices
-
-This project follows [OWASP Top 10](https://owasp.org/www-project-top-ten/) guidelines. See [`.github/instructions/security-and-owasp.instructions.md`](.github/instructions/security-and-owasp.instructions.md) for the secure coding standards applied throughout this codebase.
-
-Key practices enforced:
-
-- All user input validated with Zod at system boundaries
-- Secrets loaded from environment variables only — never hardcoded
-- Parameterized queries for any database operations
-- HTTPS enforced in production
-
-## AI Agent and MCP Server Security
-
-This project uses AI agents (GitHub Copilot, Claude) and MCP servers. Additional security measures:
-
-- **Secret scanning hook**: A `preToolUse` hook (`.github/hooks/scripts/pre-tool-secret-scan.sh`) automatically scans file content for hardcoded API keys, tokens, and credentials before any file write. It blocks the operation if secrets are detected.
-- **MCP server vetting**: 5 MCP servers are configured in `.vscode/mcp.json` (Context7, shadcn, Playwright, Next DevTools, GitHub). Only use MCP servers from trusted sources. Review server configurations before enabling.
-- **MCP secret management**: MCP inputs that require authentication (e.g., `CONTEXT7_API_KEY`, GitHub PAT) are marked as `password: true` and must be provided at runtime. Never commit these values to the repository.
-- **Agent boundaries**: Agent operations are constrained by hooks that enforce the quality gate (`pnpm lint`, `pnpm type-check`, `pnpm test`, `pnpm build`) at session end. Destructive operations (`rm -rf`, `git push --force`) require explicit user confirmation.
-- **Audit trail**: Agent sessions produce output logs. Review agent-generated PRs with the same rigor as human-authored code.
+Out of scope: the documentation site, and issues in dependencies that do not affect the
+package. Report those upstream.

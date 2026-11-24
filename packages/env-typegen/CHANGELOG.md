@@ -152,7 +152,7 @@ This project adheres to [Semantic Versioning](https://semver.org/) and uses
 - Dry-run stdout spy test verifying preview content appears (B4).
 - Integration tests expanded to five end-to-end scenarios via `execSync` against the built `dist/cli.js`.
 
-[0.1.1]: https://github.com/xlameiro/env-typegen/compare/packages/env-typegen@0.1.0...packages/env-typegen@0.1.1
+[0.1.1]: https://github.com/xabierlameiro/env-typegen/compare/packages/env-typegen@0.1.0...packages/env-typegen@0.1.1
 
 ### Added
 
@@ -199,4 +199,4 @@ This project adheres to [Semantic Versioning](https://semver.org/) and uses
 - Full TSDoc on every public export in `src/index.ts`
 - README with Quick Start (CLI examples), Programmatic API, and Configuration sections
 
-[0.1.0]: https://github.com/xlameiro/env-typegen/releases/tag/v0.1.0
+[0.1.0]: https://github.com/xabierlameiro/env-typegen/releases/tag/v0.1.0

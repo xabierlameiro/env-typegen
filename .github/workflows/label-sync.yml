@@ -19,3 +19,5 @@ jobs:
         with:
           manifest: .github/labels.yml
           token: ${{ secrets.GITHUB_TOKEN }}
+          # Keep labels created by hand in the GitHub UI.
+          prune: false
