@@ -151,8 +151,8 @@ importers:
         specifier: ^17.6.0
         version: 17.6.0
       portless:
-        specifier: ^0.16.0
-        version: 0.16.0
+        specifier: ^0.18.1
+        version: 0.18.1
       prettier:
         specifier: ^3.10.1
         version: 3.10.1
@@ -4378,8 +4378,8 @@ packages:
     resolution: {integrity: sha512-Nc3IT5yHzflTfbjgqWcCPpo7DaKy4FnpB0l/zCAW0Tc7jxAiuqSxHasntB3D7887LSrA93kDJ9IXovxJYxyLCA==}
     engines: {node: '>=4'}
 
-  portless@0.16.0:
-    resolution: {integrity: sha512-qklO8w/OhLGLKYoeAi8HOFFnd2JQYenWzbev0rvDcyAZ3xDpMg9tqb/aKlz8qrd6NIEJB5bSiDxGURaq0+YLkA==}
+  portless@0.18.1:
+    resolution: {integrity: sha512-3gfeicAvS5kwFUbZrsZpt1oU1MUBvfiy2S0MT/n8mwWEp/ZjQsWI0mC353GEi/q8JUVgdx7lBGDzCcMI9O1MXg==}
     engines: {node: '>=24'}
     os: [darwin, linux, win32]
     hasBin: true
@@ -7213,7 +7213,7 @@ snapshots:
       obug: 3.0.0
       std-env: 4.3.0
       tinyrainbow: 3.2.0
-      vitest: 5.1.1(@edge-runtime/vm@3.2.0)(@types/node@25.9.9)(@vitest/coverage-v8@5.1.1)(jsdom@30.1.3)(vite@8.3.5(@types/node@25.9.9)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.1))
+      vitest: 5.1.1(@edge-runtime/vm@3.2.0)(@types/node@22.20.5)(@vitest/coverage-v8@5.1.1)(jsdom@30.1.3)(vite@8.3.5(@types/node@22.20.5)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.1))
 
   '@vitest/istanbul-lib-coverage@2.1.1': {}
 
@@ -9722,7 +9722,7 @@ snapshots:
 
   pluralize@8.0.0: {}
 
-  portless@0.16.0: {}
+  portless@0.18.1: {}
 
   possible-typed-array-names@1.1.0: {}
 
