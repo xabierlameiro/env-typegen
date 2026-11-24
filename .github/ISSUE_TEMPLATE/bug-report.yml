@@ -1,6 +1,6 @@
 name: Bug Report
 description: Report a reproducible bug or unexpected behavior
-labels: [bug, needs-triage]
+labels: ["type: bug", "needs-triage"]
 body:
   - type: markdown
     attributes:
@@ -21,8 +21,8 @@ body:
       label: Steps to reproduce
       description: How can we reproduce this issue?
       placeholder: |
-        1. Go to '...'
-        2. Click on '...'
+        1. Run `npx env-typegen ...`
+        2. Open the generated file
         3. See error
     validations:
       required: true
@@ -43,11 +43,40 @@ body:
     validations:
       required: true
 
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - env-typegen package (CLI or API)
+        - Documentation site
+    validations:
+      required: true
+
   - type: input
     id: version
     attributes:
-      label: Version
-      placeholder: e.g. 0.1.0
+      label: env-typegen version
+      description: Output of `npx env-typegen --version`, or the version in your package.json.
+      placeholder: e.g. 0.3.0
+    validations:
+      required: true
+
+  - type: input
+    id: node
+    attributes:
+      label: Node.js version
+      description: Output of `node --version`.
+      placeholder: e.g. v22.12.0
+    validations:
+      required: true
+
+  - type: textarea
+    id: env-example
+    attributes:
+      label: .env.example that reproduces it
+      description: A minimal file, with secrets removed.
+      render: env
     validations:
       required: false
 
@@ -55,6 +84,6 @@ body:
     id: environment
     attributes:
       label: Environment
-      description: Browser, OS, Node version, etc.
+      description: OS, package manager, framework, etc.
     validations:
       required: false

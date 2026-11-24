@@ -1,11 +1,11 @@
 blank_issues_enabled: false
 contact_links:
   - name: Questions and Support
-    url: https://github.com/xlameiro/env-typegen/discussions
+    url: https://github.com/xabierlameiro/env-typegen/discussions
     about: Ask usage questions and get help from maintainers and the community.
   - name: Security Vulnerability Report
-    url: https://github.com/xlameiro/env-typegen/security/advisories/new
+    url: https://github.com/xabierlameiro/env-typegen/security/advisories/new
     about: Report security vulnerabilities privately (do not open a public issue).
   - name: Support Policy
-    url: https://github.com/xlameiro/env-typegen/blob/main/SUPPORT.md
+    url: https://github.com/xabierlameiro/env-typegen/blob/main/SUPPORT.md
     about: Read supported support channels and response expectations.

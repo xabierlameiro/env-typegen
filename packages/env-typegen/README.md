@@ -275,19 +275,19 @@ Use `verify` as the final gate. Keep `check`, `diff`, and `doctor` for stage-spe
 
 ## Docs and references
 
-- Website docs source: [`/content/docs`](../../content/docs)
-- Package docs index: [`/packages/env-typegen/docs`](./docs)
-- Policy packs guide: [`/packages/env-typegen/docs/policy-packs.md`](./docs/policy-packs.md)
-- Sync apply guide: [`/packages/env-typegen/docs/sync-apply.md`](./docs/sync-apply.md)
-- Governance promotion guide: [`/packages/env-typegen/docs/governance-promotion.md`](./docs/governance-promotion.md)
-- Governance conformance guide: [`/packages/env-typegen/docs/governance-conformance.md`](./docs/governance-conformance.md)
+- Website docs source: [`/content/docs`](https://github.com/xabierlameiro/env-typegen/tree/main/content/docs)
+- Package docs index: [`/packages/env-typegen/docs`](https://github.com/xabierlameiro/env-typegen/tree/main/packages/env-typegen/docs)
+- Policy packs guide: [`/packages/env-typegen/docs/policy-packs.md`](https://github.com/xabierlameiro/env-typegen/blob/main/packages/env-typegen/docs/policy-packs.md)
+- Sync apply guide: [`/packages/env-typegen/docs/sync-apply.md`](https://github.com/xabierlameiro/env-typegen/blob/main/packages/env-typegen/docs/sync-apply.md)
+- Governance promotion guide: [`/packages/env-typegen/docs/governance-promotion.md`](https://github.com/xabierlameiro/env-typegen/blob/main/packages/env-typegen/docs/governance-promotion.md)
+- Governance conformance guide: [`/packages/env-typegen/docs/governance-conformance.md`](https://github.com/xabierlameiro/env-typegen/blob/main/packages/env-typegen/docs/governance-conformance.md)
 - Changelog: [`CHANGELOG.md`](./CHANGELOG.md)
 
 ## Trust signals
 
-- Maintained by [@xlameiro](https://github.com/xlameiro)
-- Security policy: [`SECURITY.md`](../../SECURITY.md)
-- Contribution guide: [`CONTRIBUTING.md`](../../CONTRIBUTING.md)
+- Maintained by [@xabierlameiro](https://github.com/xabierlameiro)
+- Security policy: [`SECURITY.md`](https://github.com/xabierlameiro/env-typegen/blob/main/SECURITY.md)
+- Contribution guide: [`CONTRIBUTING.md`](https://github.com/xabierlameiro/env-typegen/blob/main/CONTRIBUTING.md)
 - Published releases: [npm package page](https://www.npmjs.com/package/@xlameiro/env-typegen)
 
 ## Status

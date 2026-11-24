@@ -1,35 +1,22 @@
 ## Summary
 
-<!-- Describe what this PR does and why. -->
+<!-- What does this PR change, and why? Link the issue it fixes, if any. -->
 
 ## Changes
-
-<!-- List the key changes made. -->
 
 -
 
 ## Type of change
 
-- [ ] Bug fix (non-breaking change that fixes an issue)
-- [ ] New feature (non-breaking change that adds functionality)
-- [ ] Breaking change (fix or feature that causes existing functionality to change)
-- [ ] Refactor (code change without new feature or bug fix)
-- [ ] Docs / config update
+- [ ] Bug fix
+- [ ] New feature
+- [ ] Breaking change
+- [ ] Refactor
+- [ ] Docs / CI / tooling
 
-## Quality gate
+## Checklist
 
-- [ ] `pnpm lint` passes with zero errors
-- [ ] `pnpm type-check` passes with zero errors
-- [ ] `pnpm test` — all tests pass
-- [ ] `pnpm build` — production build succeeds
-- [ ] New code is covered by tests
-
-## Accessibility
-
-- [ ] Keyboard accessible
-- [ ] Screen reader tested (or not applicable)
-- [ ] Contrast meets WCAG 2.2 AA (or not applicable)
-
-## Screenshots (if applicable)
-
-<!-- Add before/after screenshots for UI changes -->
+- [ ] `pnpm --filter @xlameiro/env-typegen lint`, `type-check`, `test` and `build` pass (package changes)
+- [ ] `pnpm lint`, `pnpm type-check`, `pnpm test` and `pnpm build` pass (docs site changes)
+- [ ] Tests cover the change
+- [ ] A changeset is included (`pnpm changeset`), or the change does not affect package users
