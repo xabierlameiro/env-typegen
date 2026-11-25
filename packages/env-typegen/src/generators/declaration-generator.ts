@@ -1,6 +1,7 @@
 import path from "node:path";
 
 import type { ParsedEnvFile } from "../parser/types.js";
+import { escapeJsDocText } from "./escape-jsdoc.js";
 
 /**
  * Generates an ambient `.d.ts` declaration file from a parsed .env.example.
@@ -46,7 +47,7 @@ export function generateDeclaration(parsed: ParsedEnvFile): string {
     const effectiveType = variable.annotatedType ?? variable.inferredType;
     const optional = variable.isOptional ? "?" : "";
     if (variable.description !== undefined) {
-      lines.push(`    /** ${variable.description} */`);
+      lines.push(`    /** ${escapeJsDocText(variable.description)} */`);
     }
     let propLine = `    readonly ${variable.key}${optional}: string;`;
     if (effectiveType === "number") {

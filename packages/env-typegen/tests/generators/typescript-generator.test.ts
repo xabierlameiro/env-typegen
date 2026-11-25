@@ -79,6 +79,14 @@ describe("generateTypeScriptTypes", () => {
       expect(output).toContain("/** Main database connection URL */");
     });
 
+    it("should escape a comment terminator inside the description", () => {
+      const content = "# @description ends */ console.log(1); /*\nKEY=value";
+      const parsed = parseEnvFileContent(content, "/test.env");
+      const output = generateTypeScriptTypes(parsed);
+      expect(output).toContain(String.raw`/** ends *\/ console.log(1); /* */`);
+      expect(output).not.toContain("ends */");
+    });
+
     it("should not include a JSDoc comment when there is no description", () => {
       const parsed = parseEnvFileContent("DATABASE_URL=postgresql://localhost/db", "/test.env");
       const output = generateTypeScriptTypes(parsed);
